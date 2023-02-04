@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from pathlib import Path
 import uuid
 import jwt
 import datetime
@@ -9,10 +10,10 @@ from functools import wraps
 
 app = Flask(__name__)
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(Path(__file__).with_name('config.ini'))
 
-app.config['SECRET_KEY'] = ''
-app.config['SQLALCHEMY_DATABASE_URI'] = ''
+app.config['SECRET_KEY'] = config['SECURITY']['SECRET_KEY']
+app.config['SQLALCHEMY_DATABASE_URI'] = config['DATABASE']['CONNECTION']
 
 db = SQLAlchemy(app)
 
