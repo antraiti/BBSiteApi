@@ -28,6 +28,7 @@ class User(db.Model):
     admin = db.Column(db.Boolean)
 
 class Userdeck(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
     userid = db.Column(db.Integer, db.ForeignKey('user.id'))
     deckid = db.Column(db.Integer, db.ForeignKey('deck.id'))
 
@@ -44,7 +45,7 @@ class Deck(db.Model):
 
 class Coloridentity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(16), uniqe=True)
+    name = db.Column(db.String(16), unique=True)
     blue = db.Column(db.Boolean)
     white = db.Column(db.Boolean)
     green = db.Column(db.Boolean)
@@ -124,9 +125,10 @@ def create_deck(current_user):
     data = request.get_json()
 
     new_deck = Deck(name=data['name'], link=data['link'], commander=data['commander'], partner=data['partner'], companion=data['companion'], power=data['power'], identityid=data['identityid'])
-    print(new_deck.id)
-    new_userdeck = Userdeck(userid=current_user.id, deckid=new_deck.id)
     db.session.add(new_deck)
+    db.session.commit() #Commit to generate id before using for relationship
+
+    new_userdeck = Userdeck(userid=current_user.id, deckid=new_deck.id)
     db.session.add(new_userdeck)
     db.session.commit()
 
@@ -134,7 +136,7 @@ def create_deck(current_user):
 
 @app.route('/user/<deckid>', methods=['PUT'])
 @token_required
-def update_user(current_user, deckid):
+def update_deck(current_user, deckid):
     if not current_user.admin:
         return jsonify({'message' : 'Lacking Permissions'})
     
