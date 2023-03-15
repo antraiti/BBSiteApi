@@ -7,6 +7,7 @@ import uuid
 import jwt
 import datetime
 import configparser
+from dataclasses import dataclass
 from functools import wraps
 
 app = Flask(__name__)
@@ -27,13 +28,9 @@ class User(db.Model):
     salt = db.Column(db.String(255))
     admin = db.Column(db.Boolean)
 
-class Userdeck(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    userid = db.Column(db.Integer, db.ForeignKey('user.id'))
-    deckid = db.Column(db.Integer, db.ForeignKey('deck.id'))
-
 class Deck(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    userid = db.Column(db.Integer)
     name = db.Column(db.String(64))
     link = db.Column(db.String(255))
     lastused = db.Column(db.DateTime)
@@ -43,7 +40,16 @@ class Deck(db.Model):
     power = db.Column(db.Integer)
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
 
+@dataclass
 class Coloridentity(db.Model):
+    id: int
+    name: str
+    blue: bool
+    white: bool
+    green: bool
+    red: bool
+    black: bool
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(16), unique=True)
     blue = db.Column(db.Boolean)
@@ -123,13 +129,31 @@ def update_user(current_user, username):
 @token_required
 def create_deck(current_user):
     data = request.get_json()
+    name = 'New Deck'
+    link = ''
+    commander = ''
+    partner = ''
+    companion = ''
+    power = 0
+    cidentity = 1
 
-    new_deck = Deck(name=data['name'], link=data['link'], commander=data['commander'], partner=data['partner'], companion=data['companion'], power=data['power'], identityid=data['identityid'])
+    if 'name' in data:
+        name = data['name']
+    if 'link' in data:
+        name = data['link']
+    if 'commander' in data:
+        name = data['commander']
+    if 'partner' in data:
+        name = data['partner']
+    if 'companion' in data:
+        name = data['companion']
+    if 'power' in data:
+        name = data['power']
+    if 'cidentity' in data:
+        name = data['cidentity']
+
+    new_deck = Deck(userid=current_user.id, name=name, link=link, commander=commander, partner=partner, companion=companion, power=power, identityid=cidentity)
     db.session.add(new_deck)
-    db.session.commit() #Commit to generate id before using for relationship
-
-    new_userdeck = Userdeck(userid=current_user.id, deckid=new_deck.id)
-    db.session.add(new_userdeck)
     db.session.commit()
 
     return jsonify({'message' : 'New deck created'})
@@ -170,6 +194,15 @@ def login():
         return jsonify({'token': token, 'username': user.username}) #TODO: Define a model for the response data
 
     return jsonify('Could not verify' + user.hash + data['password'], 401, {'WWW-authenticate' : 'Basic realm="Login Required"'})
+
+
+###############################################
+# Util
+###############################################
+@app.route('/colors', methods=['GET'])
+def get_coloridentities():
+    colors = Coloridentity.query.all()
+    return jsonify(colors)
 
 if __name__ == "__main__":
     app.run(debug=True)
