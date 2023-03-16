@@ -28,7 +28,18 @@ class User(db.Model):
     salt = db.Column(db.String(255))
     admin = db.Column(db.Boolean)
 
+@dataclass
 class Deck(db.Model):
+    id: int
+    name: str
+    link: str
+    lastused: datetime
+    commander: str
+    partner: str
+    companion: str
+    power: int
+    identityid: int
+
     id = db.Column(db.Integer, primary_key=True)
     userid = db.Column(db.Integer)
     name = db.Column(db.String(64))
@@ -110,13 +121,13 @@ def update_user(current_user, username):
         return jsonify({'message' : 'Lacking Permissions'})
 
     data = request.get_json()
-
     user = User.query.filter_by(username=username).first()
 
     if not user:
         return jsonify({'message' : 'No user found!'})
 
-    user.salt = "yoyo"
+    #Handle changes here
+
     db.session.commit()
 
     return jsonify({'message' : 'Updated user'})
@@ -158,22 +169,41 @@ def create_deck(current_user):
 
     return jsonify({'message' : 'New deck created'})
 
-@app.route('/user/<deckid>', methods=['PUT'])
+@app.route('/deck', methods=['PUT'])
 @token_required
-def update_deck(current_user, deckid):
-    if not current_user.admin:
-        return jsonify({'message' : 'Lacking Permissions'})
-    
+def update_deck(current_user):
     data = request.get_json()
-    deck = Deck.query.filter_by(id=deckid).first()
+    
+    deck = Deck.query.filter_by(id=data['id']).first()
     if not deck:
         return jsonify({'message' : 'No deck found!'})
     
-    if data['name']:
+    if 'name' in data:
         deck.name = data['name']
+    if 'link' in data:
+        deck.link = data['link']
+    if 'commander' in data:
+        deck.commander = data['commander']
+    if 'partner' in data:
+        deck.partner = data['partner']
+    if 'companion' in data:
+        deck.companion = data['companion']
+    if 'power' in data:
+        deck.power = data['power']
+    if 'identityid' in data:
+        deck.identityid = data['identityid']
 
     db.session.commit()
     return jsonify({'message' : 'Updated user'})
+
+@app.route('/deck', methods=['GET'])
+@token_required
+def get_user_decks(current_user):
+    decks = Deck.query.filter_by(userid=current_user.id).all()
+    if not decks:
+        return jsonify({'message' : 'No decks found!'})
+    
+    return jsonify(decks)
 
 
 ###############################################
