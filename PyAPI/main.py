@@ -69,6 +69,19 @@ class Coloridentity(db.Model):
     red = db.Column(db.Boolean)
     black = db.Column(db.Boolean)
 
+@dataclass
+class Event(db.Model):
+    id: int
+    name: str
+    time: datetime
+    themed: bool
+    themeid: int
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64))
+    time = db.Column(db.DateTime)
+    themed = db.Column(db.Boolean)
+    themeid = db.Column(db.Integer)
 
 def token_required(f):
     @wraps(f)
@@ -194,16 +207,63 @@ def update_deck(current_user):
         deck.identityid = data['identityid']
 
     db.session.commit()
-    return jsonify({'message' : 'Updated user'})
+    return jsonify({'message' : 'Updated deck'})
 
 @app.route('/deck', methods=['GET'])
 @token_required
 def get_user_decks(current_user):
     decks = Deck.query.filter_by(userid=current_user.id).all()
     if not decks:
-        return jsonify({'message' : 'No decks found!'})
+        return jsonify({'message' : 'No decks found!'}), 204
     
     return jsonify(decks)
+
+###############################################
+# Events
+###############################################
+@app.route('/event', methods=['POST'])
+@token_required
+def create_event(current_user):
+    data = request.get_json()
+    name = 'Weekly ' +   datetime.date.today().strftime("%B %d, %Y")
+    time = datetime.datetime.now()
+    themed = False
+
+    new_event = Event(name=name, time=time, themed=themed)
+    db.session.add(new_event)
+    db.session.commit()
+
+    return jsonify({'message' : 'New event created'})
+
+@app.route('/event', methods=['PUT'])
+@token_required
+def update_event(current_user):
+    data = request.get_json()
+    
+    event = Event.query.filter_by(id=data['id']).first()
+    if not event:
+        return jsonify({'message' : 'No event found!'})
+    
+    if 'name' in event:
+        event.name = data['name']
+    if 'time' in data:
+        event.time = data['time']
+    if 'themed' in data:
+        event.themed = data['themed']
+    if 'themeid' in data:
+        event.themeid = data['themeid']
+
+    db.session.commit()
+    return jsonify({'message' : 'Updated event'})
+
+@app.route('/event', methods=['GET'])
+@token_required
+def get_events(current_user):
+    events = Event.query.all()
+    if not events:
+        return jsonify({'message' : 'No events found!'}), 204
+    
+    return jsonify(events)
 
 
 ###############################################
@@ -220,7 +280,7 @@ def login():
         return jsonify('Could not verify', 401, {'WWW-authenticate' : 'Basic realm="Login Required"'})
 
     if check_password_hash(user.hash, data['password']):
-        token = jwt.encode({'username': user.username, 'publicid':user.publicid, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)}, app.config['SECRET_KEY'])
+        token = jwt.encode({'username': user.username, 'publicid':user.publicid, 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)}, app.config['SECRET_KEY'])
         return jsonify({'token': token, 'username': user.username}) #TODO: Define a model for the response data
 
     return jsonify('Could not verify' + user.hash + data['password'], 401, {'WWW-authenticate' : 'Basic realm="Login Required"'})
