@@ -225,7 +225,7 @@ def get_user_decks(current_user):
 @token_required
 def create_event(current_user):
     data = request.get_json()
-    name = 'Weekly ' +   datetime.date.today().strftime("%B %d, %Y")
+    name = 'New Untitled Event ' +   datetime.date.today().strftime("%m/%d")
     time = datetime.datetime.now()
     themed = False
 
