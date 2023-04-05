@@ -1,2 +1,2 @@
 # BBSiteApi
-API used for bbmtg.com
+API used for http://bbmtg.com/
