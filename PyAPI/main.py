@@ -83,6 +83,28 @@ class Event(db.Model):
     themed = db.Column(db.Boolean)
     themeid = db.Column(db.Integer)
 
+@dataclass
+class Match(db.Model):
+    id: int
+    eventid: int
+    name: str
+    start: datetime
+    end: datetime
+    winconid: int
+
+    id = db.Column(db.Integer, primary_key=True)
+    eventid = db.Column(db.Integer, db.ForeignKey('event.id'))
+    name = db.Column(db.String(64))
+    start = db.Column(db.DateTime)
+    end = db.Column(db.DateTime)
+    winconid = db.Column(db.Integer)
+
+@dataclass
+class EventDetails:
+    event: Event
+    matches: list[Match]
+
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -264,6 +286,41 @@ def get_events(current_user):
         return jsonify({'message' : 'No events found!'}), 204
     
     return jsonify(events)
+
+@app.route('/event/<id>', methods=['GET'])
+@token_required
+def get_event_details(current_user, id):
+    event = Event.query.filter_by(id=id).first()
+    if not event:
+        return jsonify({'message' : 'No event found!'}), 204
+    
+    matches = Match.query.filter_by(eventid=id).all()
+
+    if not matches:
+        matches = []
+    
+    eventDetails = EventDetails(event=event, matches=matches)
+    
+    return jsonify(eventDetails)
+
+
+###############################################
+# Matches
+###############################################
+@app.route('/match', methods=['POST'])
+@token_required
+def create_match(current_user):
+    data = request.get_json()
+    print(data)
+
+    count = len(Match.query.filter_by(eventid=data).all())
+    name = 'Match ' + str(count + 1)
+
+    new_match = Match(name=name, eventid=data)
+    db.session.add(new_match)
+    db.session.commit()
+
+    return jsonify({'message' : 'New match created'})
 
 
 ###############################################
