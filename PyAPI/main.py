@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from functools import wraps
 
 app = Flask(__name__)
+
 CORS(app)
 config = configparser.ConfigParser()
 config.read(Path(__file__).with_name('config.ini'))
@@ -247,7 +248,8 @@ def get_user_decks(current_user):
 @token_required
 def create_event(current_user):
     data = request.get_json()
-    name = 'New Untitled Event ' +   datetime.date.today().strftime("%m/%d")
+    weekly_count = Event.query.filter_by(themed=False).count()
+    name = 'Weekly ' + str(weekly_count + 1)
     time = datetime.datetime.now()
     themed = False
 
@@ -313,7 +315,7 @@ def create_match(current_user):
     data = request.get_json()
     print(data)
 
-    count = len(Match.query.filter_by(eventid=data).all())
+    count = Match.query.filter_by(eventid=data).count()
     name = 'Match ' + str(count + 1)
 
     new_match = Match(name=name, eventid=data)
@@ -321,6 +323,24 @@ def create_match(current_user):
     db.session.commit()
 
     return jsonify({'message' : 'New match created'})
+
+@app.route('/match', methods=['PUT'])
+@token_required
+def update_match(current_user):
+    data = request.get_json()
+    rawmatch = data['match']
+    match = Match.query.filter_by(id=rawmatch['id']).first()
+    if not match:
+        return jsonify({'message' : 'No match found!'})
+    
+    if 'prop' in data:
+        if data['prop'] == 'start':
+            match.start = rawmatch['start']
+        else:
+            match.end = rawmatch['end']
+
+    db.session.commit()
+    return jsonify({'message' : 'Updated match'})
 
 
 ###############################################
