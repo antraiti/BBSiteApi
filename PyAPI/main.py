@@ -21,7 +21,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = config['DATABASE']['CONNECTION']
 
 db = SQLAlchemy(app)
 
+@dataclass
 class User(db.Model):
+    publicid: int
+    username: str
+    admin: bool
+
     id = db.Column(db.Integer, primary_key=True)
     publicid = db.Column(db.String(50), unique=True)
     username = db.Column(db.String(32), unique=True)
@@ -101,9 +106,33 @@ class Match(db.Model):
     winconid = db.Column(db.Integer)
 
 @dataclass
+class Performance(db.Model):
+    id: int
+    matchid: int
+    deckid: int
+    order: int
+    placement: int
+    username: str
+    killedbyname: str
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = ''
+    matchid = db.Column(db.Integer, db.ForeignKey('match.id'))
+    userid = db.Column(db.Integer, db.ForeignKey('user.id'))
+    deckid = db.Column(db.Integer, db.ForeignKey('deck.id'))
+    order = db.Column(db.Integer)
+    placement = db.Column(db.Integer)
+    killedby = db.Column(db.Integer, db.ForeignKey('user.id'))
+    killedbyname = ''
+@dataclass
+class MatchDetails:
+    match: Match
+    performances: list[Performance]
+
+@dataclass
 class EventDetails:
     event: Event
-    matches: list[Match]
+    matches: list[MatchDetails]
 
 
 def token_required(f):
@@ -167,6 +196,15 @@ def update_user(current_user, username):
     db.session.commit()
 
     return jsonify({'message' : 'Updated user'})
+
+@app.route('/user', methods=['GET'])
+def get_users():
+    users = User.query.all()
+
+    if not users:
+         return jsonify({'message' : 'No users found!'})
+
+    return jsonify(users)
 
 
 ###############################################
@@ -298,10 +336,21 @@ def get_event_details(current_user, id):
     
     matches = Match.query.filter_by(eventid=id).all()
 
+    def matchperformance(m):
+        performances = Performance.query.filter_by(matchid=m.id).all()
+        for p in performances:
+            p.username = User.query.filter_by(id=p.userid).first().username
+            killedbyuser = User.query.filter_by(id=p.killedby).first()
+            if killedbyuser:
+                p.killedbyname = killedbyuser.username
+        return MatchDetails(match=m, performances=performances)
+    
+    matchdetails = list(map(matchperformance, matches))
+
     if not matches:
         matches = []
     
-    eventDetails = EventDetails(event=event, matches=matches)
+    eventDetails = EventDetails(event=event, matches=matchdetails)
     
     return jsonify(eventDetails)
 
@@ -313,7 +362,6 @@ def get_event_details(current_user, id):
 @token_required
 def create_match(current_user):
     data = request.get_json()
-    print(data)
 
     count = Match.query.filter_by(eventid=data).count()
     name = 'Match ' + str(count + 1)
@@ -341,6 +389,48 @@ def update_match(current_user):
 
     db.session.commit()
     return jsonify({'message' : 'Updated match'})
+
+###############################################
+# Performance
+###############################################
+@app.route('/performance', methods=['POST'])
+@token_required
+def create_performance(current_user):
+    data = request.get_json()
+    userinfo = data['user']
+    matchinfo = data['match']
+    userid = User.query.filter_by(publicid=userinfo['publicid']).first().id
+
+    new_performance = Performance(userid=userid, matchid=matchinfo['id'])
+    db.session.add(new_performance)
+    db.session.commit()
+
+    return jsonify({'message' : 'New deck created'})
+
+@app.route('/performance', methods=['PUT'])
+@token_required
+def update_performance(current_user):
+    data = request.get_json()
+    
+    performance = Performance.query.filter_by(id=data['id']).first()
+    if not performance:
+        return jsonify({'message' : 'No performance found!'})
+    
+    if 'placement' in data:
+        performance.name = data['placement']
+
+    db.session.commit()
+    return jsonify({'message' : 'Updated performance'})
+
+@app.route('/performance/<id>', methods=['GET'])
+@token_required
+def get_match_performances(current_user, id):
+    data = request.get_json()
+    performances = Performance.query.filter_by(matchid=id).all()
+    if not performances:
+        return jsonify({'message' : 'No decks found!'}), 204
+    
+    return jsonify(performances)
 
 
 ###############################################
