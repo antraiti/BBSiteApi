@@ -110,6 +110,7 @@ class Performance(db.Model):
     id: int
     matchid: int
     deckid: int
+    userid: int
     order: int
     placement: int
     username: str
@@ -279,6 +280,15 @@ def get_user_decks(current_user):
     
     return jsonify(decks)
 
+@app.route('/userdecks/<userid>', methods=['GET'])
+@token_required
+def get_specified_user_decks(current_user, userid):
+    decks = Deck.query.filter_by(userid=userid).all()
+    if not decks:
+        return jsonify({'message' : 'No decks found!'}), 204
+    
+    return jsonify(decks)
+
 ###############################################
 # Events
 ###############################################
@@ -417,7 +427,10 @@ def update_performance(current_user):
         return jsonify({'message' : 'No performance found!'})
     
     if 'placement' in data:
-        performance.name = data['placement']
+        performance.placement = data['placement']
+    
+    if 'order' in data:
+        performance.order = data['order']
 
     db.session.commit()
     return jsonify({'message' : 'Updated performance'})
@@ -428,7 +441,7 @@ def get_match_performances(current_user, id):
     data = request.get_json()
     performances = Performance.query.filter_by(matchid=id).all()
     if not performances:
-        return jsonify({'message' : 'No decks found!'}), 204
+        return jsonify({'message' : 'No performances found!'}), 204
     
     return jsonify(performances)
 
