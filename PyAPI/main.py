@@ -37,6 +37,7 @@ class User(db.Model):
 @dataclass
 class Deck(db.Model):
     id: int
+    userid: int
     name: str
     link: str
     lastused: datetime
@@ -134,6 +135,7 @@ class MatchDetails:
 class EventDetails:
     event: Event
     matches: list[MatchDetails]
+    decks: list[Deck]
 
 
 def token_required(f):
@@ -356,11 +358,17 @@ def get_event_details(current_user, id):
         return MatchDetails(match=m, performances=performances)
     
     matchdetails = list(map(matchperformance, matches))
+    
+    #adding decks to the event details since we will need it however this should change in the future to being grabbed as a per user query as needed
+    decks = Deck.query.all()
 
     if not matches:
         matches = []
     
-    eventDetails = EventDetails(event=event, matches=matchdetails)
+    if not decks:
+        decks = []
+    
+    eventDetails = EventDetails(event=event, matches=matchdetails, decks=decks)
     
     return jsonify(eventDetails)
 
@@ -431,6 +439,14 @@ def update_performance(current_user):
     
     if 'order' in data:
         performance.order = data['order']
+
+    if 'deckid' in data:
+        performance.deckid = data['deckid']
+    
+    if 'killedby' in data:
+        user = User.query.filter_by(publicid=data['killedby']).first()
+        if user:
+            performance.killedby = user.id
 
     db.session.commit()
     return jsonify({'message' : 'Updated performance'})
