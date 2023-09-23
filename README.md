@@ -1,2 +1,2 @@
 # BBSiteApi
-API used for http://bbmtg.com/
+API used for http://rumblemtg.com/
