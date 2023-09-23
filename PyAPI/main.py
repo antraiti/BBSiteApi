@@ -220,7 +220,6 @@ def create_user(current_user):
         return jsonify({'message' : 'Lacking Permissions'})
 
     data = request.get_json()
-    print(data['username'])
     user = User.query.filter_by(username=data['username']).first()
 
     if user:
@@ -306,7 +305,7 @@ def create_deck(current_user):
 @limiter.limit('')
 def update_deck(current_user):
     data = request.get_json()
-    
+
     deck = Deck.query.filter_by(id=data['id']).first()
     if not deck:
         return jsonify({'message' : 'No deck found!'})
@@ -345,7 +344,6 @@ def get_user_decks(current_user):
 @token_required
 @limiter.limit('')
 def get_specified_user_decks_with_cards(current_user):
-    print('-----------------------------------------'+str(current_user.id))
     commandercard = aliased(Card)
     partnercard = aliased(Card)
     companioncard = aliased(Card)
@@ -377,6 +375,7 @@ def create_deck_v2(current_user):
     list = data['list']
     user = data['user'] if 'user' in data else current_user.publicid
 
+    #commit deck first to use id later
     new_deck = Deck(name=name, userid=User.query.filter_by(publicid=user).first().id, identityid=1, lastupdated=datetime.datetime.now())
     db.session.add(new_deck)
     db.session.commit()
@@ -403,7 +402,6 @@ def create_deck_v2(current_user):
             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
             r = json.loads(req)
             print("Fetching " + cardparseinfo.group(2))
-            print(r)
             if 'id' not in r or r['set_type'] == "token":
                 #means card no exist probably because its a line defining a card type
                 if "commander" in lin.lower():
@@ -427,7 +425,6 @@ def create_deck_v2(current_user):
             dbcard = Card.query.filter_by(id=r['id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
                 dbcard = Card(id=r['id'], name=r['name'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
-            print('--------------')
             db.session.add(dbcard)
             db.session.commit()
         else:
@@ -455,6 +452,7 @@ def create_deck_v2(current_user):
                 new_deck.companion = dbcard.id
             print("Adding " + dbcard.name)
             cardcount = cardparseinfo.group(1)
+            cardcount = re.sub("[^0-9]", "", cardcount)
             if not cardcount:
                 cardcount = 1
             new_listentry = Decklist(deckid=new_deck.id, cardid=dbcard.id, iscommander=commander, count=cardcount, iscompanion=companion, issideboard=sideboard)
