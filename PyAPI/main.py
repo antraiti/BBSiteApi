@@ -16,6 +16,7 @@ import requests
 import json
 from dataclasses import dataclass
 from functools import wraps
+from sqlalchemy import delete
 
 app = Flask(__name__)
 
@@ -683,11 +684,18 @@ def update_match(current_user):
     if 'prop' in data:
         if data['prop'] == 'start':
             match.start = rawmatch['start']
-        else:
+        if data['prop'] == 'end':
             match.end = rawmatch['end']
+        if data['prop'] == 'delete':
+            if not match.start: #can only delete if we havent started the match for safety reasons
+                performances = Performance.query.filter_by(matchid=rawmatch['id']).all()
+                if performances:
+                    db.session.delete(performances)
+                db.session.delete(match)
 
     db.session.commit()
     return jsonify({'message' : 'Updated match'})
+
 
 ###############################################
 # Performance
@@ -730,6 +738,11 @@ def update_performance(current_user):
         user = User.query.filter_by(publicid=data['killedby']).first()
         if user:
             performance.killedby = user.id
+    
+    if 'delete' in data:
+        match = Match.query.filter_by(id=performance.matchid).first()
+        if not match.start:
+            db.session.delete(performance)
 
     db.session.commit()
     return jsonify({'message' : 'Updated performance'})
