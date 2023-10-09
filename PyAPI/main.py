@@ -60,6 +60,7 @@ class Card(db.Model):
     identityid: int
     banned: bool
     watchlist: bool
+    scryfallurl: string
 
     id = db.Column(db.String(36), primary_key=True)
     name = db.Column(db.String(64))
@@ -68,6 +69,7 @@ class Card(db.Model):
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     banned = db.Column(db.Boolean)
     watchlist = db.Column(db.Boolean)
+    scryfallurl = db.Column(db.string)
 
 @dataclass
 class Deck(db.Model):
@@ -76,11 +78,11 @@ class Deck(db.Model):
     name: str
     lastused: datetime
     commander: Card
-    commandername: string
+    commanderscryfall: string
     partner: Card
-    partnername: string
+    partnerscryfall: string
     companion: Card
-    companionname: string
+    companionscryfall: string
     power: int
     identityid: int
     lastupdated: datetime
@@ -90,11 +92,11 @@ class Deck(db.Model):
     name = db.Column(db.String(64))
     lastused = db.Column(db.DateTime)
     commander = db.Column(db.String(36), db.ForeignKey('card.id'))
-    commandername = db.Column(db.String(36), db.ForeignKey('card.name'))
+    commandername = db.Column(db.String(36), db.ForeignKey('card.scryfallurl'))
     partner = db.Column(db.String(36), db.ForeignKey('card.id'))
-    partnername = db.Column(db.String(36), db.ForeignKey('card.name'))
+    partnerscryfall = db.Column(db.String(36), db.ForeignKey('card.scryfallurl'))
     companion = db.Column(db.String(36), db.ForeignKey('card.id'))
-    companionname = db.Column(db.String(36), db.ForeignKey('card.name'))
+    companionscryfall = db.Column(db.String(36), db.ForeignKey('card.scryfallurl'))
     power = db.Column(db.Integer)
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     lastupdated = db.Column(db.DateTime)
@@ -431,7 +433,7 @@ def create_deck_v2(current_user):
                 continue
             dbcard = Card.query.filter_by(id=r['id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
-                dbcard = Card(id=r['id'], name=r['name'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
+                dbcard = Card(id=r['id'], name=r['name'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity']), scryfallurl=r['uri]) 
             db.session.add(dbcard)
             db.session.commit()
         else:
