@@ -78,11 +78,8 @@ class Deck(db.Model):
     name: str
     lastused: datetime
     commander: Card
-    commanderscryfall: string
     partner: Card
-    partnerscryfall: string
     companion: Card
-    companionscryfall: string
     power: int
     identityid: int
     lastupdated: datetime
@@ -92,11 +89,8 @@ class Deck(db.Model):
     name = db.Column(db.String(64))
     lastused = db.Column(db.DateTime)
     commander = db.Column(db.String(36), db.ForeignKey('card.id'))
-    commandername = db.Column(db.String(36), db.ForeignKey('card.scryfallurl'))
     partner = db.Column(db.String(36), db.ForeignKey('card.id'))
-    partnerscryfall = db.Column(db.String(36), db.ForeignKey('card.scryfallurl'))
     companion = db.Column(db.String(36), db.ForeignKey('card.id'))
-    companionscryfall = db.Column(db.String(36), db.ForeignKey('card.scryfallurl'))
     power = db.Column(db.Integer)
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     lastupdated = db.Column(db.DateTime)
@@ -154,6 +148,7 @@ class Performance(db.Model):
     id: int
     matchid: int
     deckid: int
+    deckcommander: string
     userid: int
     order: int
     placement: int
@@ -165,6 +160,7 @@ class Performance(db.Model):
     matchid = db.Column(db.Integer, db.ForeignKey('match.id'))
     userid = db.Column(db.Integer, db.ForeignKey('user.id'))
     deckid = db.Column(db.Integer, db.ForeignKey('deck.id'))
+    deckcommander = db.Column(db.Integer, db.ForeignKey('deck.commander'))
     order = db.Column(db.Integer)
     placement = db.Column(db.Integer)
     killedby = db.Column(db.Integer, db.ForeignKey('user.id'))
