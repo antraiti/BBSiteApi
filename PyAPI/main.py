@@ -76,8 +76,11 @@ class Deck(db.Model):
     name: str
     lastused: datetime
     commander: Card
+    commandername: string
     partner: Card
+    partnername: string
     companion: Card
+    companionname: string
     power: int
     identityid: int
     lastupdated: datetime
@@ -87,8 +90,11 @@ class Deck(db.Model):
     name = db.Column(db.String(64))
     lastused = db.Column(db.DateTime)
     commander = db.Column(db.String(36), db.ForeignKey('card.id'))
+    commandername = db.Column(db.String(36), db.ForeignKey('card.name'))
     partner = db.Column(db.String(36), db.ForeignKey('card.id'))
+    partnername = db.Column(db.String(36), db.ForeignKey('card.name'))
     companion = db.Column(db.String(36), db.ForeignKey('card.id'))
+    companionname = db.Column(db.String(36), db.ForeignKey('card.name'))
     power = db.Column(db.Integer)
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     lastupdated = db.Column(db.DateTime)
