@@ -36,7 +36,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = config['DATABASE']['CONNECTION']
 
 db = SQLAlchemy(app)
 
-DECKLINE_REGEX = r'(\d+x?)?\s*([^(\n]+)'
+#DECKLINE_REGEX = r'(\d+x?)?\s*([^(\n]+)'
+DECKLINE_REGEX = r'^(\d+x?)?\s*([^(\n\*]+)\s*(?:\(.*\))?\s*(\*CMDR\*)?'
 
 @dataclass
 class User(db.Model):
@@ -353,9 +354,13 @@ def get_specified_user_decks_with_cards(current_user):
                     .join(partnercard, Deck.partner==partnercard.id, isouter=True)\
                     .join(companioncard, Deck.companion==companioncard.id, isouter=True)\
                     .filter(Deck.userid==current_user.id).all()]
+    
     if not deckandcards:
         return jsonify({'message' : 'No decks found!'}), 204
-    return jsonify(deckandcards)
+    
+    performances = Performance.query.filter_by(userid=current_user.id).all()
+
+    return jsonify({"deckandcards": deckandcards, "performances": performances})
 
 @app.route('/userdecks/<userid>', methods=['GET'])
 @token_required
@@ -433,7 +438,7 @@ def create_deck_v2(current_user):
         
         if dbcard and not skip:
             #add the card entry to deck if relevant (commander etc) and decklist entry
-            if commander:
+            if commander or (cardparseinfo.group(3) and cardparseinfo.group(3).find('CMDR')):
                 if not new_deck.commander:
                     new_deck.commander = dbcard.id
                     new_deck.identityid = dbcard.identityid
@@ -559,6 +564,25 @@ def update_deck_v2(current_user, id):
     
     db.session.commit()
     return jsonify({'message' : 'Deck updated'})
+
+@app.route('/removedeck/<id>', methods=['PUT'])
+@token_required
+@limiter.limit('')
+def remove_deck(current_user, id):
+    performances = Performance.query.filter_by(deckid = id).first()
+    if performances:
+        return jsonify({'message' : 'Deck cannot be deleted. It is used in matches'}), 204
+    print("stage 2")
+    decklist = Decklist.query.filter_by(deckid = id).all()
+    for dlentry in decklist:
+        db.session.delete(dlentry)
+    print("stage 3")
+    deck = Deck.query.filter_by(id = id).first()
+    print(deck)
+    db.session.delete(deck)
+    db.session.commit()
+
+    return jsonify({'message' : 'Deck deleted'})
 
 ###############################################
 # Events
