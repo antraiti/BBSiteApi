@@ -601,10 +601,9 @@ def create_event(current_user):
     
     weekly_count = Event.query.filter_by(themed=False).count()
     name = 'Weekly ' + str(weekly_count + 1)
-    time = datetime.datetime.now()
     themed = False
 
-    new_event = Event(name=name, time=time, themed=themed)
+    new_event = Event(name=name, time=current_time, themed=themed)
     db.session.add(new_event)
     db.session.commit()
 
