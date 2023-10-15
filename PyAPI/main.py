@@ -17,6 +17,7 @@ import json
 from dataclasses import dataclass
 from functools import wraps
 from sqlalchemy import delete
+from sqlalchemy.sql import func
 
 app = Flask(__name__)
 
@@ -82,6 +83,7 @@ class Deck(db.Model):
     power: int
     identityid: int
     lastupdated: datetime
+    islegal: bool
 
     id = db.Column(db.Integer, primary_key=True)
     userid = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -93,6 +95,7 @@ class Deck(db.Model):
     power = db.Column(db.Integer)
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     lastupdated = db.Column(db.DateTime)
+    islegal = db.Column(db.Boolean)
 
 @dataclass
 class Coloridentity(db.Model):
@@ -407,6 +410,7 @@ def create_deck_v2(current_user):
             req = requests.get(url="https://api.scryfall.com/cards/named?exact=" + cardparseinfo.group(2), data=data).content
             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
             r = json.loads(req)
+            print(r)
             print("Fetching " + cardparseinfo.group(2))
             if 'id' not in r or r['set_type'] == "token":
                 #means card no exist probably because its a line defining a card type
@@ -476,7 +480,47 @@ def get_deck_v2(current_user, id):
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
     
-    return jsonify({"deck": deck, "cardlist":cardlist})
+    legality = get_deck_legality(id)
+    
+    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality})
+
+#need to move this somewhere better
+def get_deck_legality(id):
+    deck = Deck.query.filter_by(id=id).first()
+    legal = True
+    messages = []
+    if not deck:
+        return jsonify({'message' : 'No decks found!'})
+    
+    if not deck.commander:
+        legal = False
+        messages.append('Missing commander')
+    
+    cards = db.session.query(Decklist, Card, Coloridentity).select_from(Decklist).join(Card).join(Coloridentity).filter(Decklist.deckid == id).all()
+    count = 0
+    sideboard_count = 0
+    for c in cards:
+        if c.Decklist.issideboard:
+            sideboard_count += c.Decklist.count
+        else:
+            count += c.Decklist.count
+        if c.Card.banned:
+            legal = False
+            messages.append('Contains banned card '+str(c.Card.name))
+    if deck.companion == '275426c4-c14e-47d0-a9d4-24da7f6f6911':
+        if count != 80:
+            legal = False
+            messages.append('Invalid amount of cards. Expected 80, found '+str(count))
+    else:
+        if count != 60:
+            legal = False
+            messages.append('Invalid amount of cards. Expected 60, found '+str(count))
+    if sideboard_count and sideboard_count > 5:
+            legal = False
+            messages.append('Invalid amount of sideboard cards. Expected <= 5, found '+str(sideboard_count))
+
+
+    return {"legal": legal, "messages": messages}
 
 @app.route('/deck/v2/<id>', methods=['PUT'])
 @token_required
@@ -562,6 +606,8 @@ def update_deck_v2(current_user, id):
         cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
         cardentry.issideboard = False
     
+    legality = get_deck_legality(id)
+    deck.islegal = legality['legal']
     db.session.commit()
     return jsonify({'message' : 'Deck updated'})
 
@@ -713,7 +759,9 @@ def update_match(current_user):
             if not match.start: #can only delete if we havent started the match for safety reasons
                 performances = Performance.query.filter_by(matchid=rawmatch['id']).all()
                 if performances:
-                    db.session.delete(performances)
+                    for p in performances:
+                        db.session.delete(p)
+                        db.session.commit()
                 db.session.delete(match)
 
     db.session.commit()
