@@ -206,6 +206,8 @@ def create_deck_v2(current_user):
             new_listentry = Decklist(deckid=new_deck.id, cardid=dbcard.id, iscommander=commander, count=cardcount, iscompanion=companion, issideboard=sideboard)
             db.session.add(new_listentry)
             db.session.commit()
+            new_deck.islegal = get_deck_legality(new_deck.id)
+            db.session.commit()
 
     return jsonify({'message' : 'New deck created', 'deckid': new_deck.id})
 

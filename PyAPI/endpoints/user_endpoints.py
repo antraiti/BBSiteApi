@@ -17,6 +17,7 @@ def create_user(current_user):
     if user:
         return jsonify({'message' : 'User already exists'})
 
+    #this probably doesnt work after migrating since we need the secret to be setup
     hashed_password = generate_password_hash(data['password'])
 
     new_user = User(username=data['username'], hash=hashed_password, publicid=str(uuid.uuid4()))
