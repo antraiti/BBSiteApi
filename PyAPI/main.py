@@ -53,6 +53,7 @@ from endpoints.event_endpoints import *
 from endpoints.match_endpoints import *
 from endpoints.performance_endpoints import *
 from endpoints.color_endpoints import *
+from endpoints.card_endpoints import *
 
 if __name__ == "__main__":
     app.run(debug=True)
