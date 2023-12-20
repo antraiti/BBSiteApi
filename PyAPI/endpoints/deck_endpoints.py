@@ -345,6 +345,8 @@ def update_deck_v2(current_user, id):
     if data['prop'] == '-sideboard' and data['val']:
         cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
         cardentry.issideboard = False
+    if data['prop'] == 'picpos':
+        deck.picpos = data['val']
     
     legality = get_deck_legality(id)
     deck.islegal = legality['legal']
