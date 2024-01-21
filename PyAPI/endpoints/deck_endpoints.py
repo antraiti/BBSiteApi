@@ -219,10 +219,11 @@ def get_deck_v2(current_user, id):
     cardlist = [tuple(row) for row in db.session.query(Decklist, Card).join(Card).filter(Decklist.deckid == id).all()]
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
+    performances = Performance.query.filter_by(deckid=id).all()
     
     legality = get_deck_legality(id)
     
-    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality})
+    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances})
 
 #need to move this somewhere better
 def get_deck_legality(id):

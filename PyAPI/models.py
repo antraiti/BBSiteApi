@@ -88,12 +88,14 @@ class Event(db.Model):
     time: datetime
     themed: bool
     themeid: int
+    weekly: bool
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     time = db.Column(db.DateTime)
     themed = db.Column(db.Boolean)
     themeid = db.Column(db.Integer)
+    weekly = db.Column(db.Boolean)
 
 @dataclass
 class Match(db.Model):
