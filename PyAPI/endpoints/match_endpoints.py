@@ -1,3 +1,4 @@
+import datetime
 from flask import request, jsonify
 from models import Performance, Match
 from main import app, limiter, token_required, db
@@ -7,7 +8,7 @@ from main import app, limiter, token_required, db
 @limiter.limit('')
 def create_match(current_user):
     data = request.get_json()
-
+    print("new match " + data)
     count = Match.query.filter_by(eventid=data).count()
     name = 'Match ' + str(count + 1)
 
@@ -22,19 +23,24 @@ def create_match(current_user):
 @limiter.limit('')
 def update_match(current_user):
     data = request.get_json()
-    rawmatch = data['match']
-    match = Match.query.filter_by(id=rawmatch['id']).first()
+
+    if 'matchid' in data:
+        matchid = data['matchid']
+    else:
+        matchid = data['match']['id'] #old method
+
+    match = Match.query.filter_by(id=matchid).first()
     if not match:
         return jsonify({'message' : 'No match found!'})
     
     if 'prop' in data:
         if data['prop'] == 'start':
-            match.start = rawmatch['start']
+            match.start = datetime.datetime.utcnow()
         if data['prop'] == 'end':
-            match.end = rawmatch['end']
+            match.end = datetime.datetime.utcnow()
         if data['prop'] == 'delete':
             if not match.start: #can only delete if we havent started the match for safety reasons
-                performances = Performance.query.filter_by(matchid=rawmatch['id']).all()
+                performances = Performance.query.filter_by(matchid=matchid).all()
                 if performances:
                     for p in performances:
                         db.session.delete(p)

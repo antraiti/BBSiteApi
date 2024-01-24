@@ -122,6 +122,7 @@ class Performance(db.Model):
     order: int
     placement: int
     username: str
+    killedby: int
     killedbyname: str
 
     id = db.Column(db.Integer, primary_key=True)

@@ -16,7 +16,7 @@ def login():
         return jsonify('Could not verify', 401, {'WWW-authenticate' : 'Basic realm="Login Required"'})
 
     if check_password_hash(user.hash, data['password']):
-        token = jwt.encode({'username': user.username, 'publicid':user.publicid, 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)}, app.config['SECRET_KEY'])
+        token = jwt.encode({'username': user.username, 'publicid':user.publicid, 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=91)}, app.config['SECRET_KEY'])
         return jsonify({'token': token, 'username': user.username, 'publicid': user.publicid}) #TODO: Define a model for the response data
 
     return jsonify('Could not verify' + user.hash + data['password'], 401, {'WWW-authenticate' : 'Basic realm="Login Required"'})

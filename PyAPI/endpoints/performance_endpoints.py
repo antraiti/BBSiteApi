@@ -1,4 +1,5 @@
 from flask import request, jsonify
+from flask_sqlalchemy import SQLAlchemy
 from models import User, Performance, Match
 from main import app, limiter, token_required, db
 
@@ -7,11 +8,20 @@ from main import app, limiter, token_required, db
 @limiter.limit('')
 def create_performance(current_user):
     data = request.get_json()
-    userinfo = data['user']
-    matchinfo = data['match']
-    userid = User.query.filter_by(publicid=userinfo['publicid']).first().id
+    print(data)
+    
+    if 'matchid' in data: #new way
+        matchID = data['matchid']
+    else:
+        matchID = data['match']['id']
+    
+    if 'user' in data: #old way using whole user
+        userinfo = data['user']
+        userid = User.query.filter_by(publicid=userinfo['publicid']).first().id
+    else:
+        userid = User.query.filter_by(publicid=data['userid']).first().id
 
-    new_performance = Performance(userid=userid, matchid=matchinfo['id'])
+    new_performance = Performance(userid=userid, matchid=matchID)
     db.session.add(new_performance)
     db.session.commit()
 
@@ -22,7 +32,7 @@ def create_performance(current_user):
 @limiter.limit('')
 def update_performance(current_user):
     data = request.get_json()
-    
+    print(request.get_json())
     performance = Performance.query.filter_by(id=data['id']).first()
     if not performance:
         return jsonify({'message' : 'No performance found!'})
@@ -40,6 +50,13 @@ def update_performance(current_user):
         user = User.query.filter_by(publicid=data['killedby']).first()
         if user:
             performance.killedby = user.id
+    if 'killedbyuid' in data:
+        if data['killedbyuid'] == 'Killed By':
+            performance.killedby = None
+        else:
+            user = User.query.filter_by(id=data['killedbyuid']).first()
+            if user:
+                performance.killedby = user.id
     
     if 'delete' in data:
         match = Match.query.filter_by(id=performance.matchid).first()
