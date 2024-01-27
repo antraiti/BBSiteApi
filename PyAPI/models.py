@@ -6,6 +6,7 @@ db = SQLAlchemy()
 
 @dataclass
 class User(db.Model):
+    id: int
     publicid: int
     username: str
     admin: bool

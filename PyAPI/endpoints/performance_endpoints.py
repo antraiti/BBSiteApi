@@ -15,11 +15,11 @@ def create_performance(current_user):
     else:
         matchID = data['match']['id']
     
-    if 'user' in data: #old way using whole user
+    if 'user' in data: #old way using whole user DEPRECATE WHEN NEW SITE IS DEPLOYED
         userinfo = data['user']
         userid = User.query.filter_by(publicid=userinfo['publicid']).first().id
     else:
-        userid = User.query.filter_by(publicid=data['userid']).first().id
+        userid = User.query.filter_by(id=data['userid']).first().id
 
     new_performance = Performance(userid=userid, matchid=matchID)
     db.session.add(new_performance)

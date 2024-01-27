@@ -10,7 +10,7 @@ def create_event(current_user):
     data = request.get_json()
     current_time = datetime.datetime.utcnow()
     last_day = current_time - datetime.timedelta(days=1)
-    name = "New Event"
+    name = ""
     themed = False
     weekly = True
 
@@ -18,16 +18,19 @@ def create_event(current_user):
     if eventstoday > 0:
         return jsonify({'message' : 'Event already created for today'})
     
-    if 'name' in data:
-        name = data['name']
     if 'themed' in data:
         themed = data['themed']
     if 'weekly' in data:
         weekly = data['weekly']
     
-    if weekly and not themed:
+    if weekly:
         weekly_count = Event.query.filter_by(weekly=True).count()
-        name = 'Weekly ' + str(weekly_count + 1)
+        name = 'Weekly ' + str(weekly_count + 91)
+    
+    if 'name' in data:
+        if weekly:
+            name = name + ": "
+        name = name + data['name']
 
     new_event = Event(name=name, time=current_time, themed=themed, weekly=weekly)
     db.session.add(new_event)

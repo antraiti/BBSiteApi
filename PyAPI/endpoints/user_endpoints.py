@@ -54,3 +54,24 @@ def get_users():
          return jsonify({'message' : 'No users found!'})
 
     return jsonify(users)
+
+@app.route('/user/<username>/pass', methods=['PUT'])
+@token_required
+@limiter.limit('')
+def update_user_pass(current_user, username):
+    if (current_user.username != username) and (not current_user.admin):
+        return jsonify({'message' : 'Lacking Permissions'})
+
+    data = request.get_json()
+    print(data)
+    user = User.query.filter_by(username=username).first()
+
+    if not user:
+        return jsonify({'message' : 'No user found!'})
+
+    hashed_password = generate_password_hash(data)
+    user.hash = hashed_password
+    
+    db.session.commit()
+
+    return jsonify({'message' : 'Updated user'})

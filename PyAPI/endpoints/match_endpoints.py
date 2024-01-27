@@ -1,4 +1,4 @@
-import datetime
+import datetime, random
 from flask import request, jsonify
 from models import Performance, Match
 from main import app, limiter, token_required, db
@@ -36,6 +36,10 @@ def update_match(current_user):
     if 'prop' in data:
         if data['prop'] == 'start':
             match.start = datetime.datetime.utcnow()
+            #pick a random person to go first
+            performances = Performance.query.filter_by(matchid=matchid).all()
+            if performances:
+                performances[random.randint(0, len(performances)-1)].order = 1
         if data['prop'] == 'end':
             match.end = datetime.datetime.utcnow()
         if data['prop'] == 'delete':
