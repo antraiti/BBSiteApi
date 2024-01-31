@@ -1,6 +1,6 @@
 from flask import request, jsonify
 import datetime
-from models import User, Deck, Performance, Event, EventDetails, Match, MatchDetails
+from models import User, Deck, Performance, Event, EventDetails, Match, MatchDetails, Theme
 from main import app, limiter, token_required, db
 
 @app.route('/event', methods=['POST'])
@@ -20,6 +20,8 @@ def create_event(current_user):
     
     if 'themed' in data:
         themed = data['themed']
+    if 'themeid' in data:
+        themeid = data['themeid']
     if 'weekly' in data:
         weekly = data['weekly']
     
@@ -28,11 +30,15 @@ def create_event(current_user):
         name = 'Weekly ' + str(weekly_count + 91)
     
     if 'name' in data:
-        if weekly:
+        if weekly and themed:
             name = name + ": "
         name = name + data['name']
 
     new_event = Event(name=name, time=current_time, themed=themed, weekly=weekly)
+
+    if 'themeid' in data and int(themeid) > 0: #probably a better way to do this
+        new_event.themeid = themeid
+
     db.session.add(new_event)
     db.session.commit()
 
@@ -43,6 +49,7 @@ def create_event(current_user):
 @limiter.limit('')
 def update_event(current_user):
     data = request.get_json()
+    print(data)
     
     event = Event.query.filter_by(id=data['id']).first()
     if not event:
@@ -79,6 +86,7 @@ def get_event_details(current_user, id):
         return jsonify({'message' : 'No event found!'}), 204
     
     matches = Match.query.filter_by(eventid=id).all()
+    theme = Theme.query.filter_by(id=event.themeid).first()
 
     def matchperformance(m):
         performances = Performance.query.filter_by(matchid=m.id).all()
@@ -100,6 +108,6 @@ def get_event_details(current_user, id):
     if not decks:
         decks = []
     
-    eventDetails = EventDetails(event=event, matches=matchdetails, decks=decks)
+    eventDetails = EventDetails(event=event, matches=matchdetails, decks=decks, theme=theme)
     
     return jsonify(eventDetails)

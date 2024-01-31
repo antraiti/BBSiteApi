@@ -95,7 +95,7 @@ class Event(db.Model):
     name = db.Column(db.String(64))
     time = db.Column(db.DateTime)
     themed = db.Column(db.Boolean)
-    themeid = db.Column(db.Integer)
+    themeid = db.Column(db.Integer, db.ForeignKey('theme.id'))
     weekly = db.Column(db.Boolean)
 
 @dataclass
@@ -137,6 +137,16 @@ class Performance(db.Model):
     killedbyname = ''
 
 @dataclass
+class Theme(db.Model):
+    id: int
+    name: str
+    stylename: str
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(32))
+    stylename = db.Column(db.String(45))
+
+@dataclass
 class MatchDetails:
     match: Match
     performances: list[Performance]
@@ -146,6 +156,7 @@ class EventDetails:
     event: Event
     matches: list[MatchDetails]
     decks: list[Deck]
+    theme: Theme
 
 @dataclass
 class Decklist(db.Model):
