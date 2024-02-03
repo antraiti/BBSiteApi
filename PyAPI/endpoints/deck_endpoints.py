@@ -120,10 +120,10 @@ def create_deck_v2(current_user):
     data = request.get_json()
     name = data['name'] if ('name' in data) else 'New Deck'
     list = data['list']
-    user = data['user'] if 'user' in data else current_user.publicid
+    user = data['user'] if 'user' in data else current_user.id
 
     #commit deck first to use id later
-    new_deck = Deck(name=name, userid=User.query.filter_by(publicid=user).first().id, identityid=1, lastupdated=datetime.datetime.now())
+    new_deck = Deck(name=name, userid=user, identityid=1, lastupdated=datetime.datetime.now())
     db.session.add(new_deck)
     db.session.commit()
 

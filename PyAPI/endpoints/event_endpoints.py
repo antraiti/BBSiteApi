@@ -1,6 +1,7 @@
 from flask import request, jsonify
 import datetime
-from models import User, Deck, Performance, Event, EventDetails, Match, MatchDetails, Theme
+from sqlalchemy.orm import aliased
+from models import User, Deck, Performance, Event, EventDetails, Match, MatchDetails, Theme, Card
 from main import app, limiter, token_required, db
 
 @app.route('/event', methods=['POST'])
@@ -99,8 +100,14 @@ def get_event_details(current_user, id):
     
     matchdetails = list(map(matchperformance, matches))
     
-    #adding decks to the event details since we will need it however this should change in the future to being grabbed as a per user query as needed
-    decks = Deck.query.all()
+    commandercard = aliased(Card)
+    partnercard = aliased(Card)
+    companioncard = aliased(Card)
+    decks = [tuple(row) for row in db.session.query(Deck, commandercard, partnercard, companioncard).select_from(Deck)\
+                    .join(commandercard, Deck.commander==commandercard.id, isouter=True)\
+                    .join(partnercard, Deck.partner==partnercard.id, isouter=True)\
+                    .join(companioncard, Deck.companion==companioncard.id, isouter=True)\
+                    .all()]
 
     if not matches:
         matches = []
