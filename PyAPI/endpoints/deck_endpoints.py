@@ -267,9 +267,9 @@ def get_deck_legality(id):
         if count != 60:
             legal = False
             messages.append('Invalid amount of cards. Expected 60, found '+str(count))
-    if sideboard_count and sideboard_count > 5:
+    if sideboard_count and sideboard_count > 7:
             legal = False
-            messages.append('Invalid amount of sideboard cards. Expected <= 5, found '+str(sideboard_count))
+            messages.append('Invalid amount of sideboard cards. Expected <= 7, found '+str(sideboard_count))
 
 
     return {"legal": legal, "messages": messages}
