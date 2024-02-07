@@ -225,6 +225,17 @@ def get_deck_v2(current_user, id):
     
     return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances})
 
+@app.route('/decklist/<id>', methods=['GET'])
+@limiter.limit('')
+def get_decklist(id):
+    deck = Deck.query.filter_by(id=id).first()
+    cardlist = [tuple(row) for row in db.session.query(Decklist, Card).join(Card).filter(Decklist.deckid == id).all()]
+    if not deck:
+        return jsonify({'message' : 'No decks found!'}), 204
+    
+    return jsonify({"deck": deck, "cardlist":cardlist})
+
+
 #need to move this somewhere better
 def get_deck_legality(id):
     deck = Deck.query.filter_by(id=id).first()
