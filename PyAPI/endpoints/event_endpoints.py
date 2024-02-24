@@ -28,7 +28,7 @@ def create_event(current_user):
     
     if weekly:
         weekly_count = Event.query.filter_by(weekly=True).count()
-        name = 'Weekly ' + str(weekly_count + 91)
+        name = 'Weekly ' + str(weekly_count + 92)
     
     if 'name' in data:
         if weekly and themed:
