@@ -4,7 +4,7 @@ import requests, time, json
 import re
 import datetime
 from helpers import scryfall_color_converter
-from models import User, Card, Deck, Decklist, Performance, Coloridentity
+from models import User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
 
 DECKLINE_REGEX = r'^(\d+x?)?\s*([^(\n\*]+)\s*(?:\(.*\))?\s*(\*CMDR\*)?'
@@ -171,8 +171,25 @@ def create_deck_v2(current_user):
                 continue
             dbcard = Card.query.filter_by(id=r['id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
-                dbcard = Card(id=r['id'], name=r['name'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
+                dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
             db.session.add(dbcard)
+            db.session.commit()
+
+            if not Printing.query.filter_by(cardid=dbcard.id).first():
+                    print("adding prints")
+                    printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + dbcard.id + "&unique=prints").content
+                    time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
+                    rp = json.loads(printreq)
+                    if rp:
+                        for p in rp["data"]:
+                            if "image_uris" in p:
+                                print("once face " + p["id"])
+                                new_printing = Printing(id=p["id"], cardid=dbcard.id, cardimage=p["image_uris"]["large"], artcrop=p["image_uris"]["art_crop"])
+                                db.session.add(new_printing)
+                            else:
+                                print("two face")
+                                new_printing = Printing(id=p["id"], cardid=dbcard.id, cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
+                                db.session.add(new_printing)
             db.session.commit()
         else:
             print("FOUND " + dbcard.name)

@@ -22,6 +22,7 @@ class User(db.Model):
 class Card(db.Model):
     id: int
     name: str
+    typeline: str
     mv: int
     cost: str
     identityid: int
@@ -30,6 +31,7 @@ class Card(db.Model):
 
     id = db.Column(db.String(36), primary_key=True)
     name = db.Column(db.String(64))
+    typeline = db.Column(db.String(64))
     mv = db.Column(db.Integer)
     cost = db.Column(db.String(64))
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
@@ -174,3 +176,17 @@ class Decklist(db.Model):
     iscommander = db.Column(db.Boolean)
     iscompanion = db.Column(db.Boolean)
     issideboard = db.Column(db.Boolean)
+
+@dataclass
+class Printing(db.Model):
+    id: str
+    cardid: str
+    cardimage: str
+    artcrop: str
+    releasedate: datetime
+
+    id = db.Column(db.String(36), primary_key=True)
+    cardid = db.Column(db.String(36), db.ForeignKey('card.id'))
+    cardimage = db.Column(db.String(256))
+    artcrop = db.Column(db.String(256))
+    releasedate = db.Column(db.DateTime)
