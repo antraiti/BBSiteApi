@@ -52,6 +52,7 @@ class Deck(db.Model):
     lastupdated: datetime
     islegal: bool
     picpos: str
+    image: str
 
     id = db.Column(db.Integer, primary_key=True)
     userid = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -65,6 +66,7 @@ class Deck(db.Model):
     lastupdated = db.Column(db.DateTime)
     islegal = db.Column(db.Boolean)
     picpos = db.Column(db.String(24))
+    image = db.Column(db.String(256))
 
 @dataclass
 class Coloridentity(db.Model):

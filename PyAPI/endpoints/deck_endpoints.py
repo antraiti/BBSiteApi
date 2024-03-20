@@ -309,6 +309,7 @@ def update_deck_v2(current_user, id):
             oldcommander.iscommander = False
         if not data['val']:
             deck.commander = None
+            deck.image = None
         else:
             deck.commander = data['val']
             cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
@@ -327,6 +328,9 @@ def update_deck_v2(current_user, id):
                         white=(cardinfo[0].Coloridentity.white or cardinfo2[0].Coloridentity.white),
                         ).first()
                 deck.identityid = final_color.id
+            printing = Printing.query.filter_by(cardid=data['val']).first()
+            if printing:
+                deck.image = printing.artcrop
     if data['prop'] == 'partner':
         if(deck.partner):
             oldpartner = Decklist.query.filter_by(deckid=id).filter_by(cardid=deck.partner).first()
