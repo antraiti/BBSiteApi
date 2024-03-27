@@ -50,6 +50,12 @@ def update_match(current_user):
                         db.session.delete(p)
                         db.session.commit()
                 db.session.delete(match)
+        if data['prop'] == 'Normal':
+            match.power = 0
+        if data['prop'] == 'Casual':
+            match.power = -1
+        if data['prop'] == 'Competitive':
+            match.power = 1
 
     db.session.commit()
     return jsonify({'message' : 'Updated match'})

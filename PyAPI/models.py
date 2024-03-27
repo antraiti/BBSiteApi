@@ -110,6 +110,7 @@ class Match(db.Model):
     start: datetime
     end: datetime
     winconid: int
+    power: int
 
     id = db.Column(db.Integer, primary_key=True)
     eventid = db.Column(db.Integer, db.ForeignKey('event.id'))
@@ -117,6 +118,7 @@ class Match(db.Model):
     start = db.Column(db.DateTime)
     end = db.Column(db.DateTime)
     winconid = db.Column(db.Integer)
+    power = db.Column(db.Integer)
 
 @dataclass
 class Performance(db.Model):
