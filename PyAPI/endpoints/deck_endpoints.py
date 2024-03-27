@@ -169,7 +169,7 @@ def create_deck_v2(current_user):
                     sideboard = False
                 skip = True
                 continue
-            dbcard = Card.query.filter_by(id=r['id']).first() #sanity check because sometimes it trys to add things that exist
+            dbcard = Card.query.filter_by(id=r['oracle_id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
                 dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
             db.session.add(dbcard)
@@ -276,7 +276,7 @@ def get_deck_legality(id):
         if c.Card.banned:
             legal = False
             messages.append('Contains banned card '+str(c.Card.name))
-    if deck.companion == '275426c4-c14e-47d0-a9d4-24da7f6f6911':
+    if deck.companion == 'e15504a7-2b67-4185-b916-172145f10b19': #yorion oracleid
         if count != 80:
             legal = False
             messages.append('Invalid amount of cards. Expected 80, found '+str(count))

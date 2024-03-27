@@ -135,3 +135,24 @@ def get_global_stats(current_user):
                     "averagematchtime": matchtime,
                     "colorplaycount": {"b": color_playcounts.black, "u": color_playcounts.blue,"r": color_playcounts.red,"g": color_playcounts.green,"w": color_playcounts.white,"c": color_playcounts.colorless},
                     "colorwinrates": {"b": color_winrates.black, "u": color_winrates.blue,"r": color_winrates.red,"g": color_winrates.green,"w": color_winrates.white,"c": color_winrates.colorless}})
+
+@app.route('/stats/watchlist', methods=['GET'])
+@token_required
+@limiter.limit('')
+def get_watchlist_stats(current_user):
+        performances = db.session.query(Performance, Deck, Decklist, Card).filter(Deck.id==Performance.deckid).filter(Decklist.deckid==Deck.id).filter(Card.id==Decklist.cardid).all()
+        performances = list(filter(lambda x: x[3].watchlist==1, performances))
+        watchlist = Card.query.filter_by(watchlist=1).all()
+        res = []
+        for wcard in watchlist:
+            playcount = len(list(filter(lambda x: x[3].id==wcard.id, performances)))
+            wincount = len(list(filter(lambda x: x[3].id==wcard.id and x[0].placement=="1", performances)))
+            averageplacement = 0
+            for p in list(filter(lambda x: x[3].id==wcard.id, performances)):
+                if p[0].placement:
+                    averageplacement += p[0].placement
+            if playcount > 0:
+                averageplacement /= playcount
+            res.append({"id": wcard.id, "name": wcard.name, "playcount":playcount, "wincount": wincount, "average": averageplacement})
+
+        return jsonify({"data": res})
