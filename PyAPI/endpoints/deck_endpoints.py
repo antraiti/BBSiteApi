@@ -237,10 +237,28 @@ def get_deck_v2(current_user, id):
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
     performances = Performance.query.filter_by(deckid=id).all()
-    
+    printings = Printing.query.filter_by(cardid=deck.commander).all()
+    if not printings:
+        print("adding prints")
+        printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + deck.commander + "&unique=prints").content
+        time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
+        rp = json.loads(printreq)
+        if rp:
+            for p in rp["data"]:
+                if "image_uris" in p:
+                    print("once face " + p["id"])
+                    new_printing = Printing(id=p["id"], cardid=deck.commander, cardimage=p["image_uris"]["large"], artcrop=p["image_uris"]["art_crop"])
+                    db.session.add(new_printing)
+                else:
+                    print("two face")
+                    new_printing = Printing(id=p["id"], cardid=deck.commander, cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
+                    db.session.add(new_printing)
+        db.session.commit()
+
+    printings = Printing.query.filter_by(cardid=deck.commander).all()
     legality = get_deck_legality(id)
     
-    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances})
+    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings})
 
 @app.route('/decklist/<id>', methods=['GET'])
 @limiter.limit('')
@@ -299,6 +317,9 @@ def update_deck_v2(current_user, id):
     deck = Deck.query.filter_by(id=id).first()
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
+
+    if deck.userid != current_user.id or not current_user.admin:
+        return jsonify({'message' : 'Not authorized'}), 401
     
     if not 'prop' in data or not 'val' in data:
         return jsonify({'message' : 'Incomplete data provided!'}), 204
@@ -380,6 +401,8 @@ def update_deck_v2(current_user, id):
         cardentry.issideboard = False
     if data['prop'] == 'picpos':
         deck.picpos = data['val']
+    if data['prop'] == 'image':
+        deck.image = data['val']
     
     legality = get_deck_legality(id)
     deck.islegal = legality['legal']
@@ -393,12 +416,19 @@ def remove_deck(current_user, id):
     performances = Performance.query.filter_by(deckid = id).first()
     if performances:
         return jsonify({'message' : 'Deck cannot be deleted. It is used in matches'}), 204
+    
+    deck = Deck.query.filter_by(id = id).first()
+    if not deck:
+        return jsonify({'message' : 'No decks found!'}), 204
+
+    if deck.userid != current_user.id or not current_user.admin:
+        return jsonify({'message' : 'Not authorized'}), 401
+
     print("stage 2")
     decklist = Decklist.query.filter_by(deckid = id).all()
     for dlentry in decklist:
         db.session.delete(dlentry)
     print("stage 3")
-    deck = Deck.query.filter_by(id = id).first()
     print(deck)
     db.session.delete(deck)
     db.session.commit()

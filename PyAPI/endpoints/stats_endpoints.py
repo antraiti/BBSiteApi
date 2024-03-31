@@ -5,7 +5,7 @@ import re
 import datetime
 from dataclasses import dataclass, asdict
 from helpers import scryfall_color_converter
-from models import User, Card, Deck, Decklist, Performance, Coloridentity, Match
+from models import User, Card, Deck, Decklist, Performance, Coloridentity, Match, Event
 from main import app, limiter, token_required, db
 
 @dataclass
@@ -28,12 +28,23 @@ class colorstruct:
 @token_required
 @limiter.limit('')
 def get_user_stats(current_user, id):
+    includethemed = request.args.get('themed')
     user = User.query.filter_by(id=id).first()
     if not user:
         return jsonify({'message' : 'No user found!'}), 204
     
-    performances = db.session.query(Performance, Deck, Coloridentity).filter(Performance.userid == user.id).filter(Deck.id==Performance.deckid).filter(Coloridentity.id==Deck.identityid).all()
+    q = db.session.query(Performance, Deck, Coloridentity) \
+        .join(Match, Match.id==Performance.matchid) \
+        .join(Event, Event.id==Match.eventid)
     
+    if not includethemed or includethemed != "true":
+        q = q.filter(Event.themed==False)
+    
+    performances = q.filter(Performance.userid == user.id) \
+        .filter(Deck.id==Performance.deckid) \
+        .filter(Coloridentity.id==Deck.identityid).all()
+    
+
     matches_played = 0
     matches_won = 0
     average_placement = 0
@@ -85,8 +96,21 @@ def get_user_stats(current_user, id):
 @token_required
 @limiter.limit('')
 def get_global_stats(current_user):
-    performances = db.session.query(Performance, Deck, Coloridentity).filter(Deck.id==Performance.deckid).filter(Coloridentity.id==Deck.identityid).all()
-    matches = db.session.query(Match).filter(Match.end!=None).all()
+    includethemed = request.args.get('themed')
+
+    q = db.session.query(Performance, Deck, Coloridentity) \
+        .join(Match, Match.id==Performance.matchid) \
+        .join(Event, Event.id==Match.eventid)
+    
+    mq = db.session.query(Match).join(Event, Event.id==Match.eventid)
+    
+    if not includethemed or includethemed != "true":
+        q = q.filter(Event.themed==False)
+        mq = mq.filter(Event.themed==False)
+
+    performances = q.filter(Deck.id==Performance.deckid).filter(Coloridentity.id==Deck.identityid).all()
+    matches = mq.filter(Match.end!=None).all()
+
     matches_played = 0
     performance_count = 0
     color_playcounts = colorstruct()

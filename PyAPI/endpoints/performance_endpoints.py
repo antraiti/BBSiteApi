@@ -14,12 +14,8 @@ def create_performance(current_user):
         matchID = data['matchid']
     else:
         matchID = data['match']['id']
-    
-    if 'user' in data: #old way using whole user DEPRECATE WHEN NEW SITE IS DEPLOYED
-        userinfo = data['user']
-        userid = User.query.filter_by(publicid=userinfo['publicid']).first().id
-    else:
-        userid = User.query.filter_by(id=data['userid']).first().id
+
+    userid = User.query.filter_by(id=data['userid']).first().id
 
     new_performance = Performance(userid=userid, matchid=matchID)
     db.session.add(new_performance)
@@ -45,11 +41,6 @@ def update_performance(current_user):
 
     if 'deckid' in data:
         performance.deckid = data['deckid']
-    
-    if 'killedby' in data:
-        user = User.query.filter_by(publicid=data['killedby']).first()
-        if user:
-            performance.killedby = user.id
     if 'killedbyuid' in data:
         if data['killedbyuid'] == 'Killed By':
             performance.killedby = None
