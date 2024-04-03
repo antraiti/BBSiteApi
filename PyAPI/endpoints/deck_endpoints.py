@@ -318,7 +318,7 @@ def update_deck_v2(current_user, id):
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
 
-    if deck.userid != current_user.id or not current_user.admin:
+    if deck.userid != current_user.id and not current_user.admin:
         return jsonify({'message' : 'Not authorized'}), 401
     
     if not 'prop' in data or not 'val' in data:
