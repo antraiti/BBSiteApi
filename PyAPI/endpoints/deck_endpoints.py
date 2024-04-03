@@ -238,7 +238,7 @@ def get_deck_v2(current_user, id):
         return jsonify({'message' : 'No decks found!'}), 204
     performances = Performance.query.filter_by(deckid=id).all()
     printings = Printing.query.filter_by(cardid=deck.commander).all()
-    if not printings:
+    if not printings and deck.commander:
         print("adding prints")
         printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + deck.commander + "&unique=prints").content
         time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
