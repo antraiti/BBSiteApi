@@ -7,7 +7,7 @@ from helpers import scryfall_color_converter
 from models import User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
 
-DECKLINE_REGEX = r'^(\d+x?)?\s*([^(\n\*]+)\s*(?:\(.*\))?\s*(\*CMDR\*)?'
+DECKLINE_REGEX = r'^(\d+x?)?\s*([^(\n\*]+)\s*(?:\(.*\))?\s[0-9A-Z-]*\s?(\*CMDR\*)?'
 
 @app.route('/deck', methods=['POST'])
 @token_required
@@ -137,6 +137,7 @@ def create_deck_v2(current_user):
         skip = False
         cardparseinfo = re.search(DECKLINE_REGEX, lin)
         if not cardparseinfo:
+            print("COULD NOT PARSE LINE: " + lin)
             commander = False
             companion = False
             sideboard = False
@@ -149,9 +150,11 @@ def create_deck_v2(current_user):
             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
             r = json.loads(req)
             print("Fetching " + cardparseinfo.group(2))
-            if 'id' not in r or r['set_type'] == "token":
+            if 'oracle_id' not in r or r['set_type'] == "token":
                 #means card no exist probably because its a line defining a card type
+                print(cardparseinfo.group(2) + " NOT FOUND")
                 if "commander" in lin.lower():
+                    print("COMMADNERL: " + cardparseinfo.group(2))
                     commander = True
                     companion = False
                     sideboard = False
@@ -198,10 +201,12 @@ def create_deck_v2(current_user):
             #add the card entry to deck if relevant (commander etc) and decklist entry
             if commander or (cardparseinfo.group(3) and cardparseinfo.group(3).find('CMDR')):
                 if not new_deck.commander:
+                    commander = True
                     new_deck.commander = dbcard.id
                     new_deck.identityid = dbcard.identityid
                 else:
                     new_deck.partner = dbcard.id
+                    commander = True
                     color1 = Coloridentity.query.filter_by(id=new_deck.identityid).first()
                     color2 = Coloridentity.query.filter_by(id=dbcard.identityid).first()
                     final_color = Coloridentity.query.filter_by(
@@ -213,6 +218,7 @@ def create_deck_v2(current_user):
                         ).first()
                     new_deck.identityid = final_color.id
             elif companion:
+                companion = True
                 new_deck.companion = dbcard.id
             print("Adding " + dbcard.name)
             cardcount = cardparseinfo.group(1)
