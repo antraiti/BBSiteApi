@@ -5,7 +5,7 @@ import re
 import datetime
 from dataclasses import dataclass, asdict
 from helpers import scryfall_color_converter
-from models import User, Card, Deck, Decklist, Performance, Coloridentity, Match, Event
+from models import User, Card, Deck, Decklist, Performance, Coloridentity, Match, Event, Printing
 from main import app, limiter, token_required, db
 
 @dataclass
@@ -180,3 +180,30 @@ def get_watchlist_stats(current_user):
             res.append({"id": wcard.id, "name": wcard.name, "playcount":playcount, "wincount": wincount, "average": averageplacement})
 
         return jsonify({"data": res})
+
+@app.route('/stats/cards', methods=['GET'])
+@token_required
+@limiter.limit('')
+def get_card_stats(current_user):
+    cards = {}
+    printings = Printing.query.all()
+    performances = db.session.query(Performance, Deck, Decklist, Card).filter(Deck.id==Performance.deckid).filter(Decklist.deckid==Deck.id).filter(Card.id==Decklist.cardid).all()
+    for p in performances:
+        if p.Card.id in cards:
+            cards[p.Card.id]["count"] = cards[p.Card.id]["count"] + 1
+            if p.Performance.placement:
+                cards[p.Card.id]["placementtotal"] += p.Performance.placement
+            if p.Performance.placement == 1:
+                cards[p.Card.id]["wins"] = cards[p.Card.id]["wins"] + 1
+        else:
+            cards[p.Card.id] = {}
+            cards[p.Card.id]["card"] = p.Card
+            cards[p.Card.id]["count"] = 1
+            cards[p.Card.id]["placementtotal"] = 0
+            if p.Performance.placement:
+                cards[p.Card.id]["placementtotal"] += p.Performance.placement
+            if p.Performance.placement == 1:
+                cards[p.Card.id]["wins"] = 1
+            else:
+                cards[p.Card.id]["wins"] = 0
+    return jsonify({"cards": list(cards.items()), "printings": printings})

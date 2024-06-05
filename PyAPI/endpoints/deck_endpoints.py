@@ -434,6 +434,7 @@ def remove_deck(current_user, id):
     decklist = Decklist.query.filter_by(deckid = id).all()
     for dlentry in decklist:
         db.session.delete(dlentry)
+    db.session.commit()
     print("stage 3")
     print(deck)
     db.session.delete(deck)
