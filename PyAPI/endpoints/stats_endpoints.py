@@ -187,6 +187,10 @@ def get_watchlist_stats(current_user):
 def get_card_stats(current_user):
     cards = {}
     printings = Printing.query.all()
+    cardprints = {}
+    for p in printings:
+        if p.cardid not in cardprints:
+            cardprints[p.cardid] = p.artcrop
     performances = db.session.query(Performance, Deck, Decklist, Card).filter(Deck.id==Performance.deckid).filter(Decklist.deckid==Deck.id).filter(Card.id==Decklist.cardid).all()
     for p in performances:
         if p.Card.id in cards:
@@ -200,10 +204,12 @@ def get_card_stats(current_user):
             cards[p.Card.id]["card"] = p.Card
             cards[p.Card.id]["count"] = 1
             cards[p.Card.id]["placementtotal"] = 0
+            if p.Card.id in cardprints:
+                cards[p.Card.id]["artcrop"] = cardprints[p.Card.id]
             if p.Performance.placement:
                 cards[p.Card.id]["placementtotal"] += p.Performance.placement
             if p.Performance.placement == 1:
                 cards[p.Card.id]["wins"] = 1
             else:
                 cards[p.Card.id]["wins"] = 0
-    return jsonify({"cards": list(cards.items()), "printings": printings})
+    return jsonify({"cards": list(cards.items())})

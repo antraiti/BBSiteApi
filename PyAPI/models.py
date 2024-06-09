@@ -28,6 +28,7 @@ class Card(db.Model):
     identityid: int
     banned: bool
     watchlist: bool
+    custom: bool
 
     id = db.Column(db.String(36), primary_key=True)
     name = db.Column(db.String(64))
@@ -37,6 +38,7 @@ class Card(db.Model):
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     banned = db.Column(db.Boolean)
     watchlist = db.Column(db.Boolean)
+    custom = db.Column(db.Boolean)
 
 @dataclass
 class Deck(db.Model):

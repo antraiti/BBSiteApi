@@ -249,7 +249,7 @@ def get_deck_v2(current_user, id):
         printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + deck.commander + "&unique=prints").content
         time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
         rp = json.loads(printreq)
-        if rp:
+        if rp and "data" in rp:
             for p in rp["data"]:
                 if "image_uris" in p:
                     print("once face " + p["id"])
@@ -262,9 +262,10 @@ def get_deck_v2(current_user, id):
         db.session.commit()
 
     printings = Printing.query.filter_by(cardid=deck.commander).all()
+    customcards = Card.query.filter_by(custom=True).all()
     legality = get_deck_legality(id)
     
-    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings})
+    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings, "customcards": customcards})
 
 @app.route('/decklist/<id>', methods=['GET'])
 @limiter.limit('')
@@ -321,6 +322,7 @@ def get_deck_legality(id):
 def update_deck_v2(current_user, id):
     data = request.get_json()
     deck = Deck.query.filter_by(id=id).first()
+    performances = Performance.query.filter_by(deckid=id).first()
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
 
@@ -400,11 +402,25 @@ def update_deck_v2(current_user, id):
     if data['prop'] == 'name':
         deck.name = data['val']
     if data['prop'] == 'sideboard' and data['val']:
+        if performances:
+            return jsonify({'message' : 'Cannot Update Played Deck!'}), 204
         cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
         cardentry.issideboard = True
     if data['prop'] == '-sideboard' and data['val']:
+        if performances:
+            return jsonify({'message' : 'Cannot Update Played Deck!'}), 204
         cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
         cardentry.issideboard = False
+    if data['prop'] == 'card' and data['val']:
+        if performances:
+            return jsonify({'message' : 'Cannot Update Played Deck!'}), 204
+        new_listentry = Decklist(deckid=id, cardid=data['val'], count=1, iscommander=False, iscompanion=False, issideboard=False)
+        db.session.add(new_listentry)
+    if data['prop'] == '-card' and data['val']:
+        if performances:
+            return jsonify({'message' : 'Cannot Update Played Deck!'}), 204
+        cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
+        db.session.delete(cardentry)
     if data['prop'] == 'picpos':
         deck.picpos = data['val']
     if data['prop'] == 'image':
