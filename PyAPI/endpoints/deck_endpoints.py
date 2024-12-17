@@ -7,7 +7,7 @@ from helpers import scryfall_color_converter
 from models import User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
 
-DECKLINE_REGEX = r'^(\d+x?)?\s*([^(\n\*]+)\s*(?:\(.*\))?\s[0-9A-Z-]*\s?(\*CMDR\*)?'
+DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
 
 @app.route('/deck', methods=['POST'])
 @token_required
@@ -127,51 +127,63 @@ def create_deck_v2(current_user):
     db.session.add(new_deck)
     db.session.commit()
 
-    commander = False
-    companion = False
-    sideboard = False
+    commanderRegion = False
+    companionRegion = False
+    sideboardRegion = False
     skip = False
-    deckcolor = 1
+
     for lin in list.split('\n'):
-        #for each line we need to check if its a card or section identifier then handle appropriately
+        commander = False
+        companion = False
+        sideboard = False
         skip = False
+        #for each line we need to check if its a card or section identifier then handle appropriately
         cardparseinfo = re.search(DECKLINE_REGEX, lin)
+        # group 1: count
+        # group 2: cardname
+        # group 3: commander flag
         if not cardparseinfo:
             print("COULD NOT PARSE LINE: " + lin)
-            commander = False
-            companion = False
-            sideboard = False
+            if "commander" in lin.lower():
+                print("COMMADNERL: " + lin)
+                commanderRegion = True
+                companionRegion = False
+                sideboardRegion = False
+            elif "companion" in lin.lower():
+                print("COMPANIONL: " + lin)
+                commanderRegion = False
+                companionRegion = True
+                sideboardRegion = True
+            elif "sideboard" in lin.lower():
+                print("SIDEBOARDL: " + lin)
+                commanderRegion = False
+                companionRegion = False
+                sideboardRegion = True
+            else:
+                commanderRegion = False
+                companionRegion = False
+                sideboardRegion = False
+            skip = True
             continue
+
+        #try to get from db first
         dbcard = Card.query.filter_by(name=(cardparseinfo.group(2).rstrip().lstrip())).first()
         
+        # if we dont find the cardname in our db we fetch from scryfall
+        # NOTE: this will also happen sometimes when we have the cardname but it doesnt properly match
         if not dbcard:
             #here we query scryfall for the info
             req = requests.get(url="https://api.scryfall.com/cards/named?exact=" + cardparseinfo.group(2), data=data).content
             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
             r = json.loads(req)
-            print("Fetching " + cardparseinfo.group(2))
+            print("FETCHED " + cardparseinfo.group(2))
+            
             if 'oracle_id' not in r or r['set_type'] == "token":
                 #means card no exist probably because its a line defining a card type
                 print(cardparseinfo.group(2) + " NOT FOUND")
-                if "commander" in lin.lower():
-                    print("COMMADNERL: " + cardparseinfo.group(2))
-                    commander = True
-                    companion = False
-                    sideboard = False
-                elif "companion" in lin.lower():
-                    commander = False
-                    companion = True
-                    sideboard = True
-                elif "sideboard" in lin.lower():
-                    commander = False
-                    companion = False
-                    sideboard = True
-                else:
-                    commander = False
-                    companion = False
-                    sideboard = False
                 skip = True
                 continue
+            
             dbcard = Card.query.filter_by(id=r['oracle_id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
                 dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
@@ -199,12 +211,15 @@ def create_deck_v2(current_user):
         
         if dbcard and not skip:
             #add the card entry to deck if relevant (commander etc) and decklist entry
-            if commander or (cardparseinfo.group(3) and cardparseinfo.group(3).find('CMDR')):
+            if commanderRegion or (cardparseinfo.group(3) and cardparseinfo.group(3).find('CMDR')):
+                print("CHOSEN COMMANDER")
                 if not new_deck.commander:
+                    print("CHOSEN COMMANDER 1")
                     commander = True
                     new_deck.commander = dbcard.id
                     new_deck.identityid = dbcard.identityid
                 else:
+                    print("CHOSEN COMMANDER 2")
                     new_deck.partner = dbcard.id
                     commander = True
                     color1 = Coloridentity.query.filter_by(id=new_deck.identityid).first()
@@ -217,16 +232,19 @@ def create_deck_v2(current_user):
                         white=(color1.white or color2.white),
                         ).first()
                     new_deck.identityid = final_color.id
-            elif companion:
+            elif companionRegion:
                 companion = True
                 new_deck.companion = dbcard.id
+            
             print("Adding " + dbcard.name)
             cardcount = cardparseinfo.group(1)
+            
             if not cardcount:
                 cardcount = 1
             else:
                 cardcount = re.sub("[^0-9]", "", cardcount)
-            new_listentry = Decklist(deckid=new_deck.id, cardid=dbcard.id, iscommander=commander, count=cardcount, iscompanion=companion, issideboard=sideboard)
+            
+            new_listentry = Decklist(deckid=new_deck.id, cardid=dbcard.id, iscommander=commander, count=cardcount, iscompanion=companion, issideboard=sideboardRegion)
             db.session.add(new_listentry)
             db.session.commit()
             new_deck.islegal = get_deck_legality(new_deck.id)['legal']
@@ -276,6 +294,31 @@ def get_decklist(id):
         return jsonify({'message' : 'No decks found!'}), 204
     
     return jsonify({"deck": deck, "cardlist":cardlist})
+
+@app.route('/deck/<id>/steal', methods=['POST'])
+@token_required
+@limiter.limit('')
+def steal_deck(current_user, id):
+    # makes a new deck entry for user and copys decklist from provided decklist
+    old_deck = Deck.query.filter_by(id=id).first()
+    if not old_deck:
+        return jsonify({'message' : 'No decks found!'}), 204
+    
+    cardlist = [tuple(row) for row in db.session.query(Decklist, Card).join(Card).filter(Decklist.deckid == id).all()]
+    
+    # create new deck for user using old deck info
+    new_deck = Deck(name=old_deck.name + " - Clone", userid=current_user.id, identityid=old_deck.identityid, lastupdated=datetime.datetime.now(), commander=old_deck.commander, partner=old_deck.partner, companion=old_deck.companion, islegal=old_deck.islegal, image=old_deck.image)
+    db.session.add(new_deck)
+    db.session.commit()
+    
+    # 0 is decklist data
+    # 1 is card data
+    for c in cardlist:
+        new_listentry = Decklist(deckid=new_deck.id, cardid=c[1].id, iscommander=c[0].iscommander, count=c[0].count, iscompanion=c[0].iscompanion, issideboard=c[0].issideboard)
+        db.session.add(new_listentry)
+        db.session.commit()
+
+    return jsonify({'message' : 'New deck created', 'deckid': new_deck.id})
 
 
 #need to move this somewhere better

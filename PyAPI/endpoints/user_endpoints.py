@@ -16,6 +16,9 @@ def create_user(current_user):
 
     if user:
         return jsonify({'message' : 'User already exists'})
+    
+    if len(data['password']) < 5:
+        return jsonify({'message' : 'Bad pass'})
 
     #this probably doesnt work after migrating since we need the secret to be setup
     hashed_password = generate_password_hash(data['password'])
@@ -63,11 +66,13 @@ def update_user_pass(current_user, username):
         return jsonify({'message' : 'Lacking Permissions'})
 
     data = request.get_json()
-    print(data)
     user = User.query.filter_by(username=username).first()
 
     if not user:
         return jsonify({'message' : 'No user found!'})
+
+    if not len(data) < 5:
+        return jsonify({'message' : 'Bad pass'})
 
     hashed_password = generate_password_hash(data)
     user.hash = hashed_password
