@@ -13,7 +13,7 @@ app = Flask(__name__)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["60 per minute"], #this should be reduced as we optimize the pages (10 per min probably with an added hour or day amount cap)
+    default_limits=["120 per minute"], #this should be reduced as we optimize the pages (10 per min probably with an added hour or day amount cap)
     storage_uri="memory://",
 )
 

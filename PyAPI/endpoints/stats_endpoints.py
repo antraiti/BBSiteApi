@@ -213,3 +213,43 @@ def get_card_stats(current_user):
             else:
                 cards[p.Card.id]["wins"] = 0
     return jsonify({"cards": list(cards.items())})
+
+@app.route('/stats/users', methods=['GET'])
+@token_required
+@limiter.limit('')
+def get_allusers_stats(current_user):
+    users = db.session.query(User).all()
+    performances = db.session.query(Performance).all()
+
+    usersstats = {}
+
+    for u in users:
+        usersstats[u.id] = {}
+        usersstats[u.id]["gamesPlayed"] = 0
+        usersstats[u.id]["kills"] = 0
+        usersstats[u.id]["username"] = u.username
+
+    for p in performances:
+        usersstats[p.userid]["gamesPlayed"] = usersstats[p.userid]["gamesPlayed"] + 1
+
+        if p.killedby:
+            usersstats[p.userid]["kills"] = usersstats[p.userid]["kills"] + 1
+        
+    return jsonify({"usersStats": list(usersstats.items())})
+
+
+@app.route('/stats/users/<id>', methods=['GET'])
+@token_required
+@limiter.limit('')
+def get_users_stats(current_user, id):
+    #For right now we are just dumping all this to calc on the client end probably will change in the future
+    users = db.session.query(User).all()
+    performances = db.session.query(Performance).all()
+    matches = Match.query.all()
+    decks = Deck.query.filter_by(userid=id).all()
+
+    #probably can move this to a general fetch for pages to use in the future
+    printings = Printing.query.all()
+    cards = Card.query.filter_by().all()
+
+    return jsonify({"users": users, "performances": performances, "matches": matches, "decks": decks, "cards": cards, "printings": printings})
