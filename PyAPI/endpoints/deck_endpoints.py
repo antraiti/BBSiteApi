@@ -474,7 +474,7 @@ def update_deck_v2(current_user, id):
     db.session.commit()
     return jsonify({'message' : 'Deck updated'})
 
-@app.route('/remove/<id>', methods=['PUT'])
+@app.route('/removedeck/<id>', methods=['PUT'])
 @token_required
 @limiter.limit('')
 def remove_deck(current_user, id):
@@ -486,7 +486,7 @@ def remove_deck(current_user, id):
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
 
-    if deck.userid != current_user.id or not current_user.admin:
+    if deck.userid != current_user.id and not current_user.admin:
         return jsonify({'message' : 'Not authorized'}), 401
 
     print("stage 2")
