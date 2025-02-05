@@ -474,7 +474,7 @@ def update_deck_v2(current_user, id):
     db.session.commit()
     return jsonify({'message' : 'Deck updated'})
 
-@app.route('/removedeck/<id>', methods=['PUT'])
+@app.route('/remove/<id>', methods=['PUT'])
 @token_required
 @limiter.limit('')
 def remove_deck(current_user, id):
