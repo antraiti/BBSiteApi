@@ -253,7 +253,7 @@ def create_deck_v2(current_user):
     return jsonify({'message' : 'New deck created', 'deckid': new_deck.id})
 
 @app.route('/deck/v2/<id>', methods=['GET'])
-@token_required
+#@token_required preventing for now
 @limiter.limit('')
 def get_deck_v2(current_user, id):
     deck = Deck.query.filter_by(id=id).first()
