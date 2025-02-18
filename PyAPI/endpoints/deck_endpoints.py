@@ -255,7 +255,7 @@ def create_deck_v2(current_user):
 @app.route('/deck/v2/<id>', methods=['GET'])
 #@token_required preventing for now
 @limiter.limit('')
-def get_deck_v2(current_user, id):
+def get_deck_v2(id):
     deck = Deck.query.filter_by(id=id).first()
     cardlist = [tuple(row) for row in db.session.query(Decklist, Card).join(Card).filter(Decklist.deckid == id).all()]
     if not deck:
