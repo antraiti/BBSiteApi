@@ -257,11 +257,13 @@ def create_deck_v2(current_user):
 @limiter.limit('')
 def get_deck_v2(id):
     deck = Deck.query.filter_by(id=id).first()
-    cardlist = [tuple(row) for row in db.session.query(Decklist, Card).join(Card).filter(Decklist.deckid == id).all()]
+    cardlist = [tuple(row) for row in db.session.query(Decklist, Card).select_from(Decklist)\
+                .join(Card, Decklist.cardid==Card.id, isouter=True)\
+                .filter(Decklist.deckid == id).all()]
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
     performances = Performance.query.filter_by(deckid=id).all()
-    printings = Printing.query.filter_by(cardid=deck.commander).all()
+    printings = db.session.query(Printing).filter(Printing.cardid.in_((map(lambda x: x[0].cardid,cardlist)))).all()
     if not printings and deck.commander:
         print("adding prints")
         printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + deck.commander + "&unique=prints").content
@@ -279,7 +281,6 @@ def get_deck_v2(id):
                     db.session.add(new_printing)
         db.session.commit()
 
-    printings = Printing.query.filter_by(cardid=deck.commander).all()
     customcards = Card.query.filter_by(custom=True).all()
     legality = get_deck_legality(id)
     
