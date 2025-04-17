@@ -501,3 +501,35 @@ def remove_deck(current_user, id):
     db.session.commit()
 
     return jsonify({'message' : 'Deck deleted'})
+
+@app.route('/checker', methods=['POST'])
+@limiter.limit('')
+def check_decklist():
+    list = request.get_json() # data passed in is just decklist
+    output = ""
+    bannedCards = []
+
+    #iterate list
+    for lin in list.split('\n'):
+        #for each line we need to check if its a card or section identifier then handle appropriately
+        cardparseinfo = re.search(DECKLINE_REGEX, lin)
+        # group 1: count
+        # group 2: cardname
+        # group 3: commander flag
+        
+        if not cardparseinfo:
+            output += ("COULD NOT PARSE LINE: " + lin)
+            continue
+
+        #try to get from db first
+        dbcard = Card.query.filter_by(name=(cardparseinfo.group(2).rstrip().lstrip())).first()
+        
+        # if we dont find the cardname in our db we fetch from scryfall
+        # NOTE: this will also happen sometimes when we have the cardname but it doesnt properly match
+        if dbcard:
+            if dbcard.banned:
+                bannedCards.append(dbcard)
+        else:
+            output += ("NOT IN OUR DATABASE: " + lin)
+
+    return jsonify({'message' : output, "bannedCards": bannedCards})
