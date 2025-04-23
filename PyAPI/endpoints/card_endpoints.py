@@ -5,7 +5,8 @@ from helpers import scryfall_color_converter
 from models import Card
 from main import app, limiter, token_required, db
 
-DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
+OLD_DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
+DECKLINE_REGEX = r'^(\d+x?)? *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
 
 @app.route('/card/<id>', methods=['GET'])
 @token_required
@@ -42,16 +43,17 @@ def cards_from_decklist(current_user):
     list = request.get_json() # data passed in is just decklist
     cards = []
 
+    SELECTED_REGEX = DECKLINE_REGEX if list.split('\n')[0] != "oldregex" else OLD_DECKLINE_REGEX
+
     #iterate list
     for lin in list.split('\n'):
         #for each line we need to check if its a card or section identifier then handle appropriately
-        cardparseinfo = re.search(DECKLINE_REGEX, lin)
+        cardparseinfo = re.search(SELECTED_REGEX, lin)
         # group 1: count
         # group 2: cardname
         # group 3: commander flag
         
         if not cardparseinfo:
-            output += ("COULD NOT PARSE LINE: " + lin)
             continue
         #try to get from db first
         dbcard = Card.query.filter_by(name=(cardparseinfo.group(2).rstrip().lstrip())).first()

@@ -7,7 +7,8 @@ from helpers import scryfall_color_converter
 from models import User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
 
-DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
+OLD_DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
+DECKLINE_REGEX = r'^(\d+x?)? *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
 
 @app.route('/deck', methods=['POST'])
 @token_required
@@ -132,13 +133,15 @@ def create_deck_v2(current_user):
     sideboardRegion = False
     skip = False
 
+    SELECTED_REGEX = DECKLINE_REGEX if list.split('\n')[0] != "oldregex" else OLD_DECKLINE_REGEX
+
     for lin in list.split('\n'):
         commander = False
         companion = False
         sideboard = False
         skip = False
         #for each line we need to check if its a card or section identifier then handle appropriately
-        cardparseinfo = re.search(DECKLINE_REGEX, lin)
+        cardparseinfo = re.search(SELECTED_REGEX, lin)
         # group 1: count
         # group 2: cardname
         # group 3: commander flag
@@ -509,10 +512,12 @@ def check_decklist():
     output = ""
     bannedCards = []
 
+    SELECTED_REGEX = DECKLINE_REGEX if list.split('\n')[0] != "oldregex" else OLD_DECKLINE_REGEX
+
     #iterate list
     for lin in list.split('\n'):
         #for each line we need to check if its a card or section identifier then handle appropriately
-        cardparseinfo = re.search(DECKLINE_REGEX, lin)
+        cardparseinfo = re.search(SELECTED_REGEX, lin)
         # group 1: count
         # group 2: cardname
         # group 3: commander flag
