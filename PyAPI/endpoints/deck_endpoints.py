@@ -189,7 +189,14 @@ def create_deck_v2(current_user):
             
             dbcard = Card.query.filter_by(id=r['oracle_id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
-                dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], mv=r['cmc'], cost=(r['mana_cost'] if 'mana_cost' in r else r['card_faces'][0]['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
+                if "card_faces" in r:
+                    frontcard = r['card_faces'][0]
+                    dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], oracletext=frontcard['oracle_text'], mv=r['cmc'], cost=frontcard['mana_cost'], identityid=scryfall_color_converter(r['color_identity']), transform=True)
+                    backcard = r['card_faces'][1]
+                    backdbcard = Card(id=(r['oracle_id'] + "/back"), name=backcard['name'], typeline=backcard['type_line'], oracletext=backcard['oracle_text'], mv=r['cmc'], cost=backcard['mana_cost'], identityid=scryfall_color_converter(r['color_identity']), transform=True)
+                    db.session.add(backdbcard)
+                else:
+                    dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], oracletext=r['oracle_text'], mv=r['cmc'], cost=(r['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
             db.session.add(dbcard)
             db.session.commit()
 
@@ -206,8 +213,10 @@ def create_deck_v2(current_user):
                                 db.session.add(new_printing)
                             else:
                                 print("two face")
-                                new_printing = Printing(id=p["id"], cardid=dbcard.id, cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
-                                db.session.add(new_printing)
+                                new_printing_front = Printing(id=p["id"], cardid=dbcard.id, cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
+                                new_printing_back = Printing(id=(p["id"]+"/back"), cardid=(dbcard.id+"/back"), cardimage=p["card_faces"][1]["image_uris"]["large"], artcrop=p["card_faces"][1]["image_uris"]["art_crop"])
+                                db.session.add(new_printing_front)
+                                db.session.add(new_printing_back)
             db.session.commit()
         else:
             print("FOUND " + dbcard.name)

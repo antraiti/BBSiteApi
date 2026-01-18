@@ -23,22 +23,26 @@ class Card(db.Model):
     id: int
     name: str
     typeline: str
+    oracletext: str
     mv: int
     cost: str
     identityid: int
     banned: bool
     watchlist: bool
     custom: bool
+    transform: bool
 
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(46), primary_key=True)
     name = db.Column(db.String(64))
-    typeline = db.Column(db.String(64))
+    typeline = db.Column(db.String(128))
+    oracletext = db.Column(db.String(2000))
     mv = db.Column(db.Integer)
     cost = db.Column(db.String(64))
     identityid = db.Column(db.Integer, db.ForeignKey('coloridentity.id'))
     banned = db.Column(db.Boolean)
     watchlist = db.Column(db.Boolean)
     custom = db.Column(db.Boolean)
+    transform = db.Column(db.Boolean)
 
 @dataclass
 class Deck(db.Model):
