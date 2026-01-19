@@ -20,7 +20,7 @@ class User(db.Model):
 
 @dataclass
 class Card(db.Model):
-    id: int
+    id: str
     name: str
     typeline: str
     oracletext: str

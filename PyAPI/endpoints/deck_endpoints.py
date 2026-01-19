@@ -135,7 +135,10 @@ def create_deck_v2(current_user):
 
     SELECTED_REGEX = DECKLINE_REGEX if list.split('\n')[0] != "oldregex" else OLD_DECKLINE_REGEX
 
-    for lin in list.split('\n'):
+    splitLines = list.split('\n')
+    counter = 0
+    for lin in splitLines:
+        counter += 1
         commander = False
         companion = False
         sideboard = False
@@ -214,9 +217,10 @@ def create_deck_v2(current_user):
                             else:
                                 print("two face")
                                 new_printing_front = Printing(id=p["id"], cardid=dbcard.id, cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
-                                new_printing_back = Printing(id=(p["id"]+"/back"), cardid=(dbcard.id+"/back"), cardimage=p["card_faces"][1]["image_uris"]["large"], artcrop=p["card_faces"][1]["image_uris"]["art_crop"])
                                 db.session.add(new_printing_front)
-                                db.session.add(new_printing_back)
+                                if (dbcard.transform):
+                                    new_printing_back = Printing(id=(p["id"]+"/back"), cardid=(dbcard.id+"/back"), cardimage=p["card_faces"][1]["image_uris"]["large"], artcrop=p["card_faces"][1]["image_uris"]["art_crop"])
+                                    db.session.add(new_printing_back)
             db.session.commit()
         else:
             print("FOUND " + dbcard.name)
@@ -274,29 +278,19 @@ def get_deck_v2(id):
                 .filter(Decklist.deckid == id).all()]
     if not deck:
         return jsonify({'message' : 'No decks found!'}), 204
+    
+    cardbacks = db.session.query(Card).filter(Card.id.in_((map(lambda x: (x[0].cardid+"/back"), cardlist)))).all()
+
     performances = Performance.query.filter_by(deckid=id).all()
-    printings = db.session.query(Printing).filter(Printing.cardid.in_((map(lambda x: x[0].cardid,cardlist)))).all()
-    if not printings and deck.commander:
-        print("adding prints")
-        printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + deck.commander + "&unique=prints").content
-        time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
-        rp = json.loads(printreq)
-        if rp and "data" in rp:
-            for p in rp["data"]:
-                if "image_uris" in p:
-                    print("once face " + p["id"])
-                    new_printing = Printing(id=p["id"], cardid=deck.commander, cardimage=p["image_uris"]["large"], artcrop=p["image_uris"]["art_crop"])
-                    db.session.add(new_printing)
-                else:
-                    print("two face")
-                    new_printing = Printing(id=p["id"], cardid=deck.commander, cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
-                    db.session.add(new_printing)
-        db.session.commit()
+    cardMap = list(map(lambda x: str(x[0].cardid),cardlist))
+    backMap = list(map(lambda x: x.id, cardbacks))
+    combMap = cardMap + backMap
+    printings = db.session.query(Printing).filter(Printing.cardid.in_(combMap)).all()
 
     customcards = Card.query.filter_by(custom=True).all()
     legality = get_deck_legality(id)
     
-    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings, "customcards": customcards})
+    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings, "customcards": customcards, "cardbacks": cardbacks})
 
 @app.route('/decklist/<id>', methods=['GET'])
 @limiter.limit('')
