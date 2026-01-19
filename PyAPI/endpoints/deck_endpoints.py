@@ -413,7 +413,7 @@ def update_deck_v2(current_user, id):
     if data['prop'] == 'partner':
         if(deck.partner):
             oldpartner = Decklist.query.filter_by(deckid=id).filter_by(cardid=deck.partner).first()
-            oldpartner.ispartner = False
+            oldpartner.iscommander = False
         if not data['val']:
             deck.partner = None
             if deck.commander:
@@ -422,7 +422,7 @@ def update_deck_v2(current_user, id):
         else:
             deck.partner = data['val']
             cardentry = Decklist.query.filter_by(deckid=id).filter_by(cardid=data['val']).first()
-            cardentry.ispartner = True
+            cardentry.iscommander = True
             if not deck.commander:
                 cardinfo = Card.query.filter_by(id=cardentry.cardid).first()
                 deck.identityid = cardinfo.identityid
