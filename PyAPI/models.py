@@ -196,7 +196,17 @@ class Printing(db.Model):
     releasedate: datetime
 
     id = db.Column(db.String(36), primary_key=True)
-    cardid = db.Column(db.String(36), db.ForeignKey('card.id'))
+    cardid = db.Column(db.String(46), db.ForeignKey('card.id'))
     cardimage = db.Column(db.String(256))
     artcrop = db.Column(db.String(256))
     releasedate = db.Column(db.DateTime)
+
+@dataclass
+class Cardtoken(db.Model):
+    id: str
+    cardid: str
+    tokenid: str
+
+    id = db.Column(db.Integer, primary_key=True)
+    cardid = db.Column(db.String(46), db.ForeignKey('card.id'))
+    tokenid = db.Column(db.String(46))

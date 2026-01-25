@@ -4,7 +4,7 @@ import requests, time, json
 import re
 import datetime
 from helpers import scryfall_color_converter
-from models import User, Card, Deck, Decklist, Performance, Coloridentity, Printing
+from models import Cardtoken, User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
 
 OLD_DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
@@ -200,7 +200,37 @@ def create_deck_v2(current_user):
                     db.session.add(backdbcard)
                 else:
                     dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], oracletext=r['oracle_text'], mv=r['cmc'], cost=(r['mana_cost']), identityid=scryfall_color_converter(r['color_identity'])) 
-            db.session.add(dbcard)
+                db.session.add(dbcard)
+                if "all_parts" in r:
+                    for c in r["all_parts"]:
+                        if c["component"] == "token" or c['type_line'].startswith('Emblem'):
+                            tokenInfo = requests.get(url=c["uri"]).content
+                            time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
+                            ti = json.loads(tokenInfo)
+                            if "oracle_id" in ti:
+                                dbtoken = Cardtoken(cardid=r['oracle_id'], tokenid=ti["oracle_id"]) 
+                                db.session.add(dbtoken)
+                                printExisting = Printing.query.filter_by(cardid=r['oracle_id']).first()
+                                if printExisting is not None:
+                                    continue
+                                tokenPrintings = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + ti["oracle_id"] + "&unique=prints").content
+                                time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
+                                tp = json.loads(tokenPrintings)
+                                if tp:
+                                    for p in tp["data"]:
+                                        existingPrint = Printing.query.filter_by(id=p["id"]).first()
+                                        if not existingPrint:
+                                            print(f'Getting adding print for {ti["name"]} {ti["oracle_id"]}')
+                                            if "image_uris" in p:
+                                                print("once face " + p["id"])
+                                                new_printing = Printing(id=p["id"], cardid=ti["oracle_id"], cardimage=p["image_uris"]["large"], artcrop=p["image_uris"]["art_crop"])
+                                                db.session.add(new_printing)
+                                            else:
+                                                print("two face")
+                                                new_printing_front = Printing(id=p["id"], cardid=ti["oracle_id"], cardimage=p["card_faces"][0]["image_uris"]["large"], artcrop=p["card_faces"][0]["image_uris"]["art_crop"])
+                                                db.session.add(new_printing_front)
+                                                new_printing_back = Printing(id=(p["id"]+"/back"), cardid=(ti["oracle_id"]+"/back"), cardimage=p["card_faces"][1]["image_uris"]["large"], artcrop=p["card_faces"][1]["image_uris"]["art_crop"])
+                                                db.session.add(new_printing_back)
             db.session.commit()
 
             if not Printing.query.filter_by(cardid=dbcard.id).first():
@@ -281,16 +311,19 @@ def get_deck_v2(id):
     
     cardbacks = db.session.query(Card).filter(Card.id.in_((map(lambda x: (x[0].cardid+"/back"), cardlist)))).all()
 
+    tokens = db.session.query(Cardtoken).filter(Cardtoken.cardid.in_(map(lambda x: str(x[0].cardid),cardlist))).all()
+
     performances = Performance.query.filter_by(deckid=id).all()
     cardMap = list(map(lambda x: str(x[0].cardid),cardlist))
     backMap = list(map(lambda x: x.id, cardbacks))
-    combMap = cardMap + backMap
+    tokenMap = list(set(map(lambda x: x.tokenid, tokens)))
+    combMap = cardMap + backMap + tokenMap
     printings = db.session.query(Printing).filter(Printing.cardid.in_(combMap)).all()
 
     customcards = Card.query.filter_by(custom=True).all()
     legality = get_deck_legality(id)
     
-    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings, "customcards": customcards, "cardbacks": cardbacks})
+    return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings, "tokens": tokenMap, "customcards": customcards, "cardbacks": cardbacks})
 
 @app.route('/decklist/<id>', methods=['GET'])
 @limiter.limit('')
