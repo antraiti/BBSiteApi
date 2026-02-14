@@ -5,7 +5,7 @@ from flask import request, jsonify
 import requests
 from sqlalchemy.orm import aliased
 from helpers import scryfall_color_converter
-from models import Card, Cardtoken, Printing
+from models import Card, Cardtoken, Printing, Printfavorite
 from main import app, limiter, token_required, db
 
 OLD_DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
@@ -138,3 +138,39 @@ def add_all_tokens(current_user):
 # 2. Add POST function to iterate ALL cards and update printings that are missing. 
 #     - (this should pull the latest bulk data to save time)
 
+@app.route('/printfavorite', methods=['GET'])
+@token_required
+@limiter.limit('')
+def get_printfavorites(current_user):
+    printfavorites = Printfavorite.query.filter_by(userid=current_user.id).all()
+    if not printfavorites:
+        return jsonify({'message' : 'No favorites found!'}), 204
+        
+    return jsonify(printfavorites)
+
+@app.route('/printfavorite', methods=['POST'])
+@token_required
+@limiter.limit('')
+def update_printfavorite(current_user):
+    data = request.get_json()
+    if not 'card' in data:
+        return jsonify({'message' : 'Incomplete data provided!'}), 204
+    
+    printfavorite = Printfavorite.query.filter_by(userid=current_user.id, cardid=data['card']).first()
+    
+    #handle unfavoriting
+    if not 'print' in data or data['print'] == '':
+        if printfavorite:
+            db.session.delete(printfavorite)
+            db.session.commit()
+        return jsonify({'message' : 'Removed Favorite'})
+    
+    #adding/editing favorite
+    if printfavorite:
+        printfavorite.printingid = data['print']
+    else:
+        new_favorite = Printfavorite(userid=current_user.id, cardid=data['card'], printingid=data['print'])
+        db.session.add(new_favorite)
+    db.session.commit()
+        
+    return jsonify({'message' : 'Updated Favorite'})

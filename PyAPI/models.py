@@ -210,3 +210,15 @@ class Cardtoken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cardid = db.Column(db.String(46), db.ForeignKey('card.id'))
     tokenid = db.Column(db.String(46))
+
+@dataclass
+class Printfavorite(db.Model):
+    id: int
+    userid: int
+    cardid: str
+    printingid: str
+
+    id = db.Column(db.Integer, primary_key=True)
+    userid = db.Column(db.Integer, db.ForeignKey('user.id'))
+    cardid = db.Column(db.String(46), db.ForeignKey('card.id'))
+    printingid = db.Column(db.String(48), db.ForeignKey('printing.id'))
