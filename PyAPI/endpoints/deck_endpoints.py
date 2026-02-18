@@ -6,6 +6,7 @@ import datetime
 from helpers import scryfall_color_converter
 from models import Cardtoken, User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
+from urllib.parse import quote
 
 OLD_DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
 DECKLINE_REGEX = r'^(\d+x?)? *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
@@ -179,7 +180,7 @@ def create_deck_v2(current_user):
         # NOTE: this will also happen sometimes when we have the cardname but it doesnt properly match
         if not dbcard:
             #here we query scryfall for the info
-            req = requests.get(url="https://api.scryfall.com/cards/named?exact=" + cardparseinfo.group(2), data=data).content
+            req = requests.get(url="https://api.scryfall.com/cards/named?exact=" + quote(cardparseinfo.group(2)), data=data).content
             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
             r = json.loads(req)
             print("FETCHED " + cardparseinfo.group(2))
