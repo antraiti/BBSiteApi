@@ -11,6 +11,10 @@ from urllib.parse import quote
 OLD_DECKLINE_REGEX = r'^(\d+x?) *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
 DECKLINE_REGEX = r'^(\d+x?)? *([^\(\n\*]+) *(?:\(.*\))? *(?:[\d]+|\w\w\w-\d+)? *(\*CMDR\*)?'
 
+headers = {
+    'User-Agent': 'RumbleMTG/1.0 (contact: antraiti@github)'
+}
+
 @app.route('/deck', methods=['POST'])
 @token_required
 @limiter.limit('')
@@ -180,7 +184,7 @@ def create_deck_v2(current_user):
         # NOTE: this will also happen sometimes when we have the cardname but it doesnt properly match
         if not dbcard:
             #here we query scryfall for the info
-            req = requests.get(url="https://api.scryfall.com/cards/named?exact=" + quote(cardparseinfo.group(2)), data=data).content
+            req = requests.get(url="https://api.scryfall.com/cards/named?exact=" + quote(cardparseinfo.group(2)), data=data, headers=headers).content
             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
             r = json.loads(req)
             print("FETCHED " + cardparseinfo.group(2))
@@ -193,7 +197,7 @@ def create_deck_v2(current_user):
             
             dbcard = Card.query.filter_by(id=r['oracle_id']).first() #sanity check because sometimes it trys to add things that exist
             if not dbcard:
-                if "card_faces" in r:
+                if "card_faces" in r and not 'Adventure' in r['type_line']:
                     frontcard = r['card_faces'][0]
                     dbcard = Card(id=r['oracle_id'], name=r['name'], typeline=r['type_line'], oracletext=frontcard['oracle_text'], mv=r['cmc'], cost=frontcard['mana_cost'], identityid=scryfall_color_converter(r['color_identity']), transform=True)
                     backcard = r['card_faces'][1]
@@ -205,7 +209,7 @@ def create_deck_v2(current_user):
                 if "all_parts" in r:
                     for c in r["all_parts"]:
                         if c["component"] == "token" or c['type_line'].startswith('Emblem'):
-                            tokenInfo = requests.get(url=c["uri"]).content
+                            tokenInfo = requests.get(url=c["uri"], headers=headers).content
                             time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
                             ti = json.loads(tokenInfo)
                             if "oracle_id" in ti:
@@ -214,7 +218,7 @@ def create_deck_v2(current_user):
                                 printExisting = Printing.query.filter_by(cardid=r['oracle_id']).first()
                                 if printExisting is not None:
                                     continue
-                                tokenPrintings = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + ti["oracle_id"] + "&unique=prints").content
+                                tokenPrintings = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + ti["oracle_id"] + "&unique=prints", headers=headers).content
                                 time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
                                 tp = json.loads(tokenPrintings)
                                 if tp:
@@ -236,12 +240,12 @@ def create_deck_v2(current_user):
 
             if not Printing.query.filter_by(cardid=dbcard.id).first():
                     print("adding prints")
-                    printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + dbcard.id + "&unique=prints").content
+                    printreq = requests.get(url="https://api.scryfall.com/cards/search?q=oracleid=" + dbcard.id + "&unique=prints", headers=headers).content
                     time.sleep(0.1) #in order to prevent timeouts we need to throttle to 100ms
                     rp = json.loads(printreq)
                     if rp:
                         for p in rp["data"]:
-                            if "image_uris" in p:
+                            if "image_uris" in p or ('layout' in p and p['layout'] == 'adventure') or ('layout' in p and p['layout'] == 'prepared'):
                                 print("once face " + p["id"])
                                 new_printing = Printing(id=p["id"], cardid=dbcard.id, cardimage=p["image_uris"]["large"], artcrop=p["image_uris"]["art_crop"])
                                 db.session.add(new_printing)
