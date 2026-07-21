@@ -330,6 +330,73 @@ def get_deck_v2(id):
     
     return jsonify({"deck": deck, "cardlist":cardlist, "legality": legality, "performances": performances, "printings": printings, "tokens": tokenMap, "customcards": customcards, "cardbacks": cardbacks})
 
+@app.route('/deck/tts/<id>', methods=['GET'])
+#@token_required preventing for now
+@limiter.limit('')
+def get_tts_deck(id):
+    deck = Deck.query.filter_by(id=id).first()
+    cardlist = [tuple(row) for row in db.session.query(Decklist, Card).select_from(Decklist)\
+                .join(Card, Decklist.cardid==Card.id, isouter=True)\
+                .filter(Decklist.deckid == id).all()]
+    if not deck:
+        return jsonify({'message' : 'No decks found!'}), 204
+    
+    cardbacks = db.session.query(Card).filter(Card.id.in_((map(lambda x: (x[0].cardid+"/back"), cardlist)))).all()
+
+    tokens = db.session.query(Cardtoken).filter(Cardtoken.cardid.in_(map(lambda x: str(x[0].cardid),cardlist))).all()
+
+    cardMap = list(map(lambda x: str(x[0].cardid),cardlist))
+    backMap = list(map(lambda x: x.id, cardbacks))
+    tokenMap = list(set(map(lambda x: x.tokenid, tokens)))
+    combMap = cardMap + backMap + tokenMap
+    printings = db.session.query(Printing).filter(Printing.cardid.in_(combMap)).all()
+
+    formattedCardlist = []
+    for c in cardlist:
+        printing = next((p for p in printings if p.cardid == c[1].id), None)
+        backPrinting = next((p for p in printings if p.cardid == (c[1].id + "/back")), None)
+        if printing:
+            formattedCardlist.append({
+                "id": c[1].id,
+                "name": c[1].name,
+                "oracletext": c[1].oracletext,
+                "count": c[0].count,
+                "iscommander": c[0].iscommander,
+                "iscompanion": c[0].iscompanion,
+                "issideboard": c[0].issideboard,
+                "url": printing.cardimage,
+                "backurl": backPrinting.cardimage if backPrinting else None,
+            })
+        else:
+            formattedCardlist.append({
+                "id": c[1].id,
+                "name": c[1].name,
+                "oracletext": c[1].oracletext,
+                "count": c[0].count,
+                "iscommander": c[0].iscommander,
+                "iscompanion": c[0].iscompanion,
+                "issideboard": c[0].issideboard,
+                "url": "",
+                "backurl": ""
+            })
+    
+    formattedTokens = []
+    for t in tokenMap:
+        tokenPrinting = next((p for p in printings if p.cardid == t), None)
+        if tokenPrinting:
+            formattedTokens.append({
+                "id": t,
+                "url": tokenPrinting.cardimage
+            })
+        else:
+            formattedTokens.append({
+                "id": t,
+                "url": ""
+            })
+
+    return jsonify({"deck": deck, "cardlist":formattedCardlist,"tokens": formattedTokens})
+
+
 @app.route('/decklist/<id>', methods=['GET'])
 @limiter.limit('')
 def get_decklist(id):
