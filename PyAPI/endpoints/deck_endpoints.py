@@ -355,9 +355,9 @@ def get_tts_deck(id):
     formattedCardlist = []
     for c in cardlist:
         frontFavorite = next((p for p in printFavorites if p.cardid == c[1].id),None)
-        printing = next((p for p in printFavorites if p.id == frontFavorite.printingid), None) if frontFavorite is not None else next((p for p in printings if p.cardid == c[1].id), None)
+        printing = next((p for p in printings if p.id == frontFavorite.printingid), None) if frontFavorite is not None else next((p for p in printings if p.cardid == c[1].id), None)
         backFavorite = next((p for p in printFavorites if p.cardid == (c[1].id + "/back")),None)
-        backPrinting = next((p for p in printFavorites if p.id == backFavorite.printingid), None) if backFavorite is not None else next((p for p in printings if p.cardid == (c[1].id + "/back")), None)
+        backPrinting = next((p for p in printings if p.id == backFavorite.printingid), None) if backFavorite is not None else next((p for p in printings if p.cardid == (c[1].id + "/back")), None)
         if printing:
             formattedCardlist.append({
                 "id": c[1].id,
