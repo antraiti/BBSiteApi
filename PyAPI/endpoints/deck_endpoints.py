@@ -4,7 +4,7 @@ import requests, time, json
 import re
 import datetime
 from helpers import scryfall_color_converter
-from models import Cardtoken, User, Card, Deck, Decklist, Performance, Coloridentity, Printing
+from models import Cardtoken, Printfavorite, User, Card, Deck, Decklist, Performance, Coloridentity, Printing
 from main import app, limiter, token_required, db
 from urllib.parse import quote
 
@@ -350,11 +350,12 @@ def get_tts_deck(id):
     tokenMap = list(set(map(lambda x: x.tokenid, tokens)))
     combMap = cardMap + backMap + tokenMap
     printings = db.session.query(Printing).filter(Printing.cardid.in_(combMap)).all()
+    printFavorites = db.session.query(Printfavorite).filter(Printfavorite.userid == deck.userid).filter(Printing.cardid.in_(combMap)).all()
 
     formattedCardlist = []
     for c in cardlist:
-        printing = next((p for p in printings if p.cardid == c[1].id), None)
-        backPrinting = next((p for p in printings if p.cardid == (c[1].id + "/back")), None)
+        printing = next((p for p in printFavorites if p.cardid == c[1].id), next((p for p in printings if p.cardid == c[1].id), None))
+        backPrinting = next((p for p in printFavorites if p.cardid == (c[1].id + "/back")), next((p for p in printings if p.cardid == (c[1].id + "/back")), None))
         if printing:
             formattedCardlist.append({
                 "id": c[1].id,
